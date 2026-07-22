@@ -223,15 +223,19 @@ export default function AiCopilot() {
                 </span>
                 <button 
                   onClick={(e) => handleDeleteConversation(conv.id, e)}
+                  title="Delete Audit Session"
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-dark)',
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: '#ef4444',
+                    borderRadius: '4px',
+                    padding: '4px 6px',
                     cursor: 'pointer',
-                    opacity: 0.7
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'var(--transition-fast)'
                   }}
-                  onMouseEnter={(e) => e.target.style.color = 'var(--status-failed)'}
-                  onMouseLeave={(e) => e.target.style.color = 'var(--text-dark)'}
                 >
                   <Trash2 size={13} />
                 </button>

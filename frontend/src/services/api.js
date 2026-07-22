@@ -113,6 +113,10 @@ export const api = {
     return request('PUT', path, body);
   },
 
+  delete: async (path) => {
+    return request('DELETE', path);
+  },
+
   postMultipart: async (path, formData) => {
     return request('POST', path, formData, true);
   }
