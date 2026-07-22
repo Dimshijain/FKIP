@@ -71,7 +71,7 @@ services:
       - WEAVIATE_URL=http://fkip-weaviate:8080
       - OLLAMA_URL=http://fkip-ollama:11434
       - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL:-all-minilm}
-      - LLM_MODEL=${LLM_MODEL:-llama3}
+      - LLM_MODEL=${LLM_MODEL:-qwen2:0.5b}
     volumes:
       - ./backend:/app
       - ./scripts:/scripts

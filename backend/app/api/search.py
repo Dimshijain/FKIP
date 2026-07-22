@@ -264,7 +264,7 @@ async def chat_assistant(
             ollama_response = await client.post(
                 f"{settings.OLLAMA_URL}/api/chat",
                 json={
-                    "model": settings.LLM_MODEL,
+                    "model": "qwen2:0.5b",
                     "messages": ollama_messages,
                     "stream": False
                 }

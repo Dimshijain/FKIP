@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     WEAVIATE_URL: str = "http://fkip-weaviate:8080"
     OLLAMA_URL: str = "http://fkip-ollama:11434"
     EMBEDDINGS_MODEL: str = "all-minilm"
-    LLM_MODEL: str = "llama3"
+    LLM_MODEL: str = "qwen2:0.5b"
     
     # Path for document uploads
     UPLOAD_DIR: str = "/app/uploads"
