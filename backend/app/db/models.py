@@ -197,7 +197,7 @@ class CopilotConversation(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    messages = relationship("CopilotMessage", back_populates="conversation", cascade="all, delete-orphan")
+    messages = relationship("CopilotMessage", back_populates="conversation", order_by="CopilotMessage.created_at.asc()", cascade="all, delete-orphan")
 
 class CopilotMessage(Base):
     __tablename__ = "copilot_messages"
