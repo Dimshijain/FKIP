@@ -21,6 +21,58 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/copilot", tags=["copilot"])
 
+@router.get("/models")
+def get_available_models():
+    """Return available enterprise AI models for hot-swapping in Copilot UI."""
+    available_models = [
+        {
+            "id": "qwen2:0.5b",
+            "name": "Qwen 2.5 (0.5B Fast)",
+            "provider": "Ollama (Local CPU)",
+            "description": "Ultra-fast local model optimized for real-time RAG context synthesis (< 1.5s latency).",
+            "parameter_size": "0.5B Parameters",
+            "status": "Active",
+            "is_default": True
+        },
+        {
+            "id": "llama3:latest",
+            "name": "Llama 3.1 (8B Heavy)",
+            "provider": "Ollama (Local)",
+            "description": "High-capacity Meta Llama model for deep enterprise reasoning and complex SQL synthesis.",
+            "parameter_size": "8.0B Parameters",
+            "status": "Available",
+            "is_default": False
+        },
+        {
+            "id": "mistral:latest",
+            "name": "Mistral (7B Instruct)",
+            "provider": "Ollama (Local)",
+            "description": "Balanced instruction-tuned model for precise technical doc generation and auditing.",
+            "parameter_size": "7.0B Parameters",
+            "status": "Available",
+            "is_default": False
+        },
+        {
+            "id": "gemma:latest",
+            "name": "Gemma 3 (Google 2B)",
+            "provider": "Ollama (Local)",
+            "description": "Lightweight Google open model tuned for structured enterprise compliance & schemas.",
+            "parameter_size": "2.0B Parameters",
+            "status": "Available",
+            "is_default": False
+        },
+        {
+            "id": "deepseek-r1:latest",
+            "name": "DeepSeek R1 (Reasoning)",
+            "provider": "Ollama (Local / Cloud)",
+            "description": "Advanced chain-of-thought reasoning model for complex architectural impact analysis.",
+            "parameter_size": "7.0B Parameters",
+            "status": "Available",
+            "is_default": False
+        }
+    ]
+    return available_models
+
 @router.post("/conversations", response_model=CopilotConversationResponse, status_code=status.HTTP_201_CREATED)
 def create_conversation(
     title: str = "New Conversation",
@@ -305,13 +357,19 @@ async def copilot_chat(
     # Log Source Validation telemetry
     logger.info(f"[Source Validation Audit] Query: '{req.message}' | Sources: {retrieved_sources_log} | Prompt Length: {len(enriched_prompt)}")
 
-    # 5. LLM Response Generation
+    # 5. LLM Response Generation with Multi-Model Support
     response_text = ""
-    models_to_try = ["qwen2:0.5b"]
+    target_model = req.model if req.model else "qwen2:0.5b"
+    models_to_try = [target_model]
+    if target_model != "qwen2:0.5b":
+        models_to_try.append("qwen2:0.5b")
+
+    active_model_used = target_model
 
     for model_name in models_to_try:
         try:
-            async with httpx.AsyncClient(timeout=2.5) as client:
+            model_timeout = 10.0 if (model_name == target_model and target_model != "qwen2:0.5b") else 2.5
+            async with httpx.AsyncClient(timeout=model_timeout) as client:
                 ollama_response = await client.post(
                     f"{settings.OLLAMA_URL}/api/chat",
                     json={
@@ -324,6 +382,7 @@ async def copilot_chat(
                     text_out = ollama_response.json().get("message", {}).get("content", "").strip()
                     if text_out and len(text_out) > 10:
                         response_text = text_out
+                        active_model_used = model_name
                         break
         except Exception as e:
             err_str = str(e).strip() or type(e).__name__
@@ -469,6 +528,7 @@ async def copilot_chat(
     return CopilotChatResponse(
         conversation_id=conv.id,
         message_id=asst_msg.id,
+        model=active_model_used,
         response=response_text,
         suggestions=suggestions,
         recommendations=recommendations

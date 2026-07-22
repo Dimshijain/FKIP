@@ -18,7 +18,8 @@ import {
   Copy,
   Edit3,
   Check,
-  Highlighter
+  Highlighter,
+  Sliders
 } from 'lucide-react';
 
 export default function AiCopilot() {
@@ -31,6 +32,16 @@ export default function AiCopilot() {
   const [isSending, setIsSending] = useState(false);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [newChatTitle, setNewChatTitle] = useState('New Audit Session');
+
+  // Multi-Model Selection State
+  const [availableModels, setAvailableModels] = useState([
+    { id: "qwen2:0.5b", name: "Qwen 2.5 (0.5B Fast)", provider: "Ollama (Local CPU)" },
+    { id: "llama3:latest", name: "Llama 3.1 (8B Heavy)", provider: "Ollama (Local)" },
+    { id: "mistral:latest", name: "Mistral (7B Instruct)", provider: "Ollama (Local)" },
+    { id: "gemma:latest", name: "Gemma 3 (Google 2B)", provider: "Ollama (Local)" },
+    { id: "deepseek-r1:latest", name: "DeepSeek R1 (Reasoning)", provider: "Ollama (Local)" }
+  ]);
+  const [selectedModel, setSelectedModel] = useState("qwen2:0.5b");
   
   // Message Actions state
   const [activeMenuMsgId, setActiveMenuMsgId] = useState(null);
@@ -39,6 +50,17 @@ export default function AiCopilot() {
   const [editingText, setEditingText] = useState('');
 
   const messagesEndRef = useRef(null);
+
+  const loadModels = async () => {
+    try {
+      const models = await api.get('/copilot/models');
+      if (models && models.length > 0) {
+        setAvailableModels(models);
+      }
+    } catch (err) {
+      console.error("Failed to fetch available AI models", err);
+    }
+  };
 
   const loadConversations = async (selectFirst = false) => {
     try {
@@ -55,6 +77,7 @@ export default function AiCopilot() {
   };
 
   useEffect(() => {
+    loadModels();
     loadConversations(true);
   }, []);
 
@@ -97,8 +120,8 @@ export default function AiCopilot() {
         },
         {
           type: "dna_feature",
-          name: "Core Banking Settlement Engine - ISO20022 Clearing",
-          description: "Parses and validates pacs.008 and pacs.009 XML payment clearing messages in real-time."
+          name: "Core Banking Settlement Engine - Double-Entry Ledger Posting",
+          description: "Executes real-time debit and credit accounting ledger updates with ACID guarantees."
         }
       ]);
     } catch (err) {
@@ -149,7 +172,6 @@ export default function AiCopilot() {
     const text = textToSend || inputMessage;
     if (!text.trim()) return;
 
-    // Build temporary user message
     const tempUserMsg = {
       id: Math.random().toString(),
       role: 'user',
@@ -165,7 +187,8 @@ export default function AiCopilot() {
     try {
       const payload = {
         conversation_id: activeConvId,
-        message: text
+        message: text,
+        model: selectedModel
       };
       const res = await api.post('/copilot/chat', payload);
       
@@ -224,6 +247,8 @@ export default function AiCopilot() {
       sel.addRange(range);
     }
   };
+
+  const activeModelObj = availableModels.find(m => m.id === selectedModel) || availableModels[0];
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 300px', height: 'calc(100vh - 80px)', gap: '20px' }}>
@@ -310,12 +335,43 @@ export default function AiCopilot() {
 
       {/* 2. Main Chat Area */}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px' }}>
-        {/* Chat Header */}
-        <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px' }}>
+        {/* Chat Header with Interactive Model Selector */}
+        <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <h2 style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Cpu size={18} style={{ color: 'var(--color-primary)' }} />
             <span>AI Copilot Workspace</span>
           </h2>
+
+          {/* Model Selector Control */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sliders size={13} style={{ color: 'var(--color-secondary)' }} />
+            <span style={{ fontSize: '11px', color: 'var(--text-dark)', fontWeight: 600 }}>MODEL:</span>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              style={{
+                background: 'rgba(99, 102, 241, 0.12)',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
+                color: 'var(--color-primary)',
+                padding: '5px 10px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+              title={activeModelObj?.description || "Selected AI Model"}
+            >
+              {availableModels.map(m => (
+                <option key={m.id} value={m.id} style={{ background: '#1e293b', color: '#f8fafc' }}>
+                  {m.name} ({m.provider})
+                </option>
+              ))}
+            </select>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--status-completed)', fontWeight: 600, background: 'rgba(16, 185, 129, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+              ● Active
+            </span>
+          </div>
         </div>
 
         {/* Message Log */}
@@ -356,7 +412,7 @@ export default function AiCopilot() {
                     alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start'
                   }}>
                     {msg.role === 'user' ? <User size={12} /> : <Cpu size={12} style={{ color: 'var(--color-primary)' }} />}
-                    <span>{msg.role === 'user' ? 'You' : 'FKIP Copilot'}</span>
+                    <span>{msg.role === 'user' ? 'You' : `FKIP Copilot (${selectedModel})`}</span>
 
                     {/* Action Menu Container */}
                     <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: '4px' }}>
@@ -521,7 +577,7 @@ export default function AiCopilot() {
           {isSending && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
               <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-              <span>Copilot is indexing context and thinking...</span>
+              <span>Copilot ({activeModelObj?.name || selectedModel}) is indexing context and thinking...</span>
             </div>
           )}
           <div ref={messagesEndRef} />

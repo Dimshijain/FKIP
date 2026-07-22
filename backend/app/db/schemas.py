@@ -267,9 +267,12 @@ class CopilotChatRequest(BaseModel):
     conversation_id: Optional[UUID] = None
     message: str
     document_id: Optional[str] = None
+    model: Optional[str] = "qwen2:0.5b"
 
 class CopilotChatResponse(BaseModel):
     conversation_id: UUID
+    message_id: Optional[UUID] = None
+    model: Optional[str] = "qwen2:0.5b"
     response: str
     suggestions: List[str]
     recommendations: List[dict]
