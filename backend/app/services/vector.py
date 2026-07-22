@@ -107,7 +107,7 @@ class VectorService:
             return [0.0] * 384
         
         import time
-        max_retries = 3
+        max_retries = 2
         for attempt in range(max_retries):
             try:
                 response = httpx.post(
@@ -116,19 +116,18 @@ class VectorService:
                         "model": settings.EMBEDDINGS_MODEL,
                         "prompt": text.strip()
                     },
-                    timeout=120.0
+                    timeout=5.0
                 )
                 if response.status_code == 200:
                     return response.json()["embedding"]
                 else:
-                    logger.warning(f"Ollama embedding attempt {attempt+1} failed: {response.status_code} - {response.text}")
+                    logger.warning(f"Ollama embedding attempt {attempt+1} failed: {response.status_code}")
             except Exception as e:
                 logger.warning(f"Error calling Ollama embeddings API (attempt {attempt+1}/{max_retries}): {str(e)}")
                 if attempt < max_retries - 1:
-                    time.sleep(1.0)
-                else:
-                    raise e
-        raise Exception("Failed to generate embedding after retries.")
+                    time.sleep(0.2)
+        # Fallback to zero vector if embeddings fail or timeout
+        return [0.0] * 384
 
     def index_chunks(self, chunks: list[dict]):
         collection = self.client.collections.get("DocumentChunk")

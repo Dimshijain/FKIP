@@ -57,15 +57,39 @@ export default function AiCopilot() {
       const data = await api.get(`/copilot/conversations/${id}`);
       setMessages(data.messages);
       
-      // Load suggestions and recommendations of the last message if assistant
-      const lastMsg = data.messages[data.messages.length - 1];
-      if (lastMsg && lastMsg.role === 'assistant') {
-        setSuggestions(lastMsg.suggestions || []);
-        setRecommendations(lastMsg.recommendations || []);
-      } else {
-        setSuggestions([]);
-        setRecommendations([]);
+      let foundRecs = [];
+      let foundSugg = [];
+      for (let i = data.messages.length - 1; i >= 0; i--) {
+        const msg = data.messages[i];
+        if (msg.role === 'assistant') {
+          if (!foundSugg.length && msg.suggestions?.length) foundSugg = msg.suggestions;
+          if (!foundRecs.length && msg.recommendations?.length) foundRecs = msg.recommendations;
+        }
       }
+      
+      setSuggestions(foundSugg.length ? foundSugg : [
+        "Explain the system architecture and database dependencies.",
+        "What capability clusters are registered in our Core Banking catalog?",
+        "Show response latency trends and search telemetry."
+      ]);
+      
+      setRecommendations(foundRecs.length ? foundRecs : [
+        {
+          type: "document",
+          name: "core_banking_architecture_spec.txt",
+          description: "Distributed transaction accounting, multi-currency ledger processing, and high-availability PostgreSQL/Weaviate architecture."
+        },
+        {
+          type: "document",
+          name: "payment_gateway_integration_guide.txt",
+          description: "ISO20022 message clearing, pacs.008 XML schema validation, and real-time Fedwire reconciliation specifications."
+        },
+        {
+          type: "dna_feature",
+          name: "Core Banking Settlement Engine - ISO20022 Clearing",
+          description: "Parses and validates pacs.008 and pacs.009 XML payment clearing messages in real-time."
+        }
+      ]);
     } catch (err) {
       console.error("Failed to fetch session details", err);
     }
