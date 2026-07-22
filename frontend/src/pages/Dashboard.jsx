@@ -277,27 +277,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Opportunities Breakdown */}
-            <div className="card">
-              <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Opportunities Priority Distribution</h3>
-              <div style={{ display: 'flex', gap: '16px', justifyContent: 'space-between' }}>
-                {['P1', 'P2', 'P3'].map(p => {
-                  const count = execData?.innovation?.priority_distribution?.[p] || 0;
-                  const percent = oppsCount > 0 ? (count / oppsCount) * 100 : 0;
-                  return (
-                    <div key={p} style={{ flex: 1, padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span style={{ fontWeight: 600 }}>Priority {p}</span>
-                        <span style={{ color: 'var(--color-primary)' }}>{count}</span>
-                      </div>
-                      <div style={{ width: '100%', height: '6px', background: 'var(--bg-input)', borderRadius: '3px' }}>
-                        <div style={{ width: `${percent}%`, height: '100%', background: 'var(--color-primary)', borderRadius: '3px' }}></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+
           </div>
 
           {/* Right Column: Search trends and active users */}
