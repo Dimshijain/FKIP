@@ -1,0 +1,324 @@
+from pydantic import BaseModel, EmailStr
+from typing import Optional, List
+from datetime import datetime
+from uuid import UUID
+from app.db.models import UserRole, IngestionStatus, OpportunitySource, OpportunityMetric, OpportunityPriority, OpportunityStatus
+
+# --- AUTH SCHEMAS ---
+class UserBase(BaseModel):
+    email: EmailStr
+    role: UserRole
+
+class UserCreate(UserBase):
+    password: str
+
+class UserResponse(UserBase):
+    id: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+    role: Optional[UserRole] = None
+
+# --- DOCUMENT SCHEMAS ---
+class DocumentResponse(BaseModel):
+    id: UUID
+    filename: str
+    file_size_bytes: int
+    file_type: str
+    status: IngestionStatus
+    error_message: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class DocumentChunkResponse(BaseModel):
+    id: UUID
+    chunk_index: int
+    chunk_content: str
+    token_count: int
+
+    class Config:
+        from_attributes = True
+
+# --- SEARCH & RAG SCHEMAS ---
+class SearchQueryRequest(BaseModel):
+    query: str
+    limit: Optional[int] = 5
+    document_id: Optional[str] = None
+
+class SearchResultChunk(BaseModel):
+    document_id: str
+    filename: str
+    chunk_content: str
+    score: float
+
+class SearchQueryResponse(BaseModel):
+    query: str
+    results: List[SearchResultChunk]
+
+class ChatMessage(BaseModel):
+    role: str # "user" or "assistant"
+    content: str
+
+class ChatQueryRequest(BaseModel):
+    messages: List[ChatMessage]
+    temperature: Optional[float] = 0.7
+    document_id: Optional[str] = None
+
+class CitationSource(BaseModel):
+    filename: str
+    chunk_content: str
+
+class ChatQueryResponse(BaseModel):
+    response: str
+    citations: List[CitationSource]
+    log_id: UUID
+
+# --- FEEDBACK SCHEMAS ---
+class FeedbackCreate(BaseModel):
+    log_id: UUID
+    rating: int # 1 to 5
+    comments: Optional[str] = None
+
+# --- OPPORTUNITY SCHEMAS ---
+class OpportunityBase(BaseModel):
+    name: str
+    description: str
+    source_type: OpportunitySource
+    business_value: OpportunityMetric
+    complexity: OpportunityMetric
+    priority: OpportunityPriority
+    status: OpportunityStatus = OpportunityStatus.BACKLOG
+
+class OpportunityCreate(OpportunityBase):
+    pass
+
+class OpportunityResponse(OpportunityBase):
+    id: UUID
+    opp_code: str
+    created_by: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# --- PHASE 2 ADDITIONAL SCHEMAS ---
+from app.db.models import OracleObjectType, DependencyType
+
+# --- ORACLE SCHEMAS ---
+class OracleMetadataBase(BaseModel):
+    object_name: str
+    object_type: OracleObjectType
+    owner: str
+    schema_definition: str
+
+class OracleMetadataCreate(OracleMetadataBase):
+    pass
+
+class OracleMetadataResponse(OracleMetadataBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class OracleDependencyResponse(BaseModel):
+    id: UUID
+    source_object_id: UUID
+    target_object_id: UUID
+    dep_type: DependencyType
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ImpactAnalysisItem(BaseModel):
+    id: UUID
+    object_name: str
+    object_type: str
+    dep_type: str
+    depth: int
+
+# --- CORE BANKING SCHEMAS ---
+class DnaAppFeatureBase(BaseModel):
+    feature_name: str
+    feature_description: str
+    category: str
+
+class DnaAppFeatureResponse(DnaAppFeatureBase):
+    id: UUID
+    app_id: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class DnaApplicationBase(BaseModel):
+    app_code: str
+    app_name: str
+    owner: str
+    description: str
+    version: str
+    status: str
+    platform: str
+
+class DnaApplicationResponse(DnaApplicationBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    features: List[DnaAppFeatureResponse] = []
+
+    class Config:
+        from_attributes = True
+
+class FeatureSimilarityItem(BaseModel):
+    app_code: str
+    app_name: str
+    feature_name: str
+    feature_description: str
+    similarity_score: float
+
+class CapabilityCluster(BaseModel):
+    cluster_id: str
+    primary_capability: str
+    category: str
+    features: List[FeatureSimilarityItem]
+
+# --- ADMIN & MONITORING SCHEMAS ---
+class UserRoleUpdate(BaseModel):
+    role: UserRole
+
+class ServiceStatus(BaseModel):
+    status: str
+    details: str
+
+class SystemStats(BaseModel):
+    users_count: int
+    documents_count: int
+    chunks_count: int
+    opportunities_count: int
+    db_size_bytes: int
+    weaviate_size_bytes: int
+    ollama_status: ServiceStatus
+    postgres_status: ServiceStatus
+    weaviate_status: ServiceStatus
+    cpu_percent: float
+    memory_percent: float
+
+# --- REPORTS SCHEMAS ---
+class QueryLatencyPoint(BaseModel):
+    timestamp: datetime
+    latency_ms: int
+
+class SearchAnalytics(BaseModel):
+    total_queries: int
+    average_latency_ms: int
+    average_relevance_score: float
+    average_rating: float
+    top_queries: List[dict]
+    latency_trend: List[QueryLatencyPoint]
+
+class DocumentAnalytics(BaseModel):
+    total_count: int
+    total_size_bytes: int
+    by_type: List[dict]
+
+class ReportsAnalytics(BaseModel):
+    search: SearchAnalytics
+    documents: DocumentAnalytics
+    active_users_count: int
+
+# --- PHASE 3 INTELLIGENT LAYER SCHEMAS ---
+
+# Copilot Schemas
+class CopilotMessageResponse(BaseModel):
+    id: UUID
+    role: str
+    content: str
+    suggestions: Optional[List[str]] = None
+    recommendations: Optional[List[dict]] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class CopilotConversationResponse(BaseModel):
+    id: UUID
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    messages: List[CopilotMessageResponse] = []
+
+    class Config:
+        from_attributes = True
+
+class CopilotChatRequest(BaseModel):
+    conversation_id: Optional[UUID] = None
+    message: str
+    document_id: Optional[str] = None
+
+class CopilotChatResponse(BaseModel):
+    conversation_id: UUID
+    response: str
+    suggestions: List[str]
+    recommendations: List[dict]
+
+# Generated Document Schemas
+class GeneratedDocumentCreate(BaseModel):
+    doc_type: str # "BRD", "SRS", "TECH_DESIGN", "API_DOCS", "RELEASE_NOTES", "USER_MANUAL"
+    title: str
+
+class GeneratedDocumentResponse(BaseModel):
+    id: UUID
+    doc_type: str
+    title: str
+    content: str
+    author: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Innovation Discovery Engine Schemas
+class InnovationAnalyzeRequest(BaseModel):
+    document_ids: List[UUID]
+
+class ProposedOpportunity(BaseModel):
+    name: str
+    description: str
+    business_value: OpportunityMetric
+    complexity: OpportunityMetric
+    priority: OpportunityPriority
+    impact_assessment: str
+
+class InnovationAnalyzeResponse(BaseModel):
+    gaps: List[str]
+    ideas: List[ProposedOpportunity]
+
+# Knowledge Graph Schemas
+class GraphNode(BaseModel):
+    id: str
+    label: str
+    type: str # "document", "oracle_object", "dna_application", "opportunity"
+    metadata: Optional[dict] = None
+
+class GraphEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    type: str # "contains", "references", "belongs_to", "depends_on", "source_of"
+
+class KnowledgeGraphResponse(BaseModel):
+    nodes: List[GraphNode]
+    edges: List[GraphEdge]

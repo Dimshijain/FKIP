@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  fkip-postgres:
+    image: postgres:15-alpine
+    container_name: fkip-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fkip_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fkip_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-fkip_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/bootstrap_db.sql:/docker-entrypoint-initdb.d/bootstrap_db.sql
+    networks:
+      - fkip-network
+
+  fkip-weaviate:
+    image: semitechnologies/weaviate:1.24.1
+    container_name: fkip-weaviate
+    restart: always
+    ports:
+      - "8081:8080"
+      - "50052:50051"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: ''
+      CLUSTER_HOSTNAME: 'node1'
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    networks:
+      - fkip-network
+
+  fkip-ollama:
+    image: ollama/ollama:latest
+    container_name: fkip-ollama
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - fkip-network
+    # For NVIDIA GPU support, uncomment the section below:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  fkip-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fkip-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-fkip_user}:${POSTGRES_PASSWORD:-fkip_pass}@fkip-postgres:5432/${POSTGRES_DB:-fkip_db}
+      - SECRET_KEY=${SECRET_KEY:-supersecretjwtkeyforfkipenterprise2026!}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      - WEAVIATE_URL=http://fkip-weaviate:8080
+      - OLLAMA_URL=http://fkip-ollama:11434
+      - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL:-all-minilm}
+      - LLM_MODEL=${LLM_MODEL:-llama3}
+    volumes:
+      - ./backend:/app
+      - ./scripts:/scripts
+      - ./demo_data:/demo_data
+      - document_uploads:/app/uploads
+    depends_on:
+      - fkip-postgres
+      - fkip-weaviate
+      - fkip-ollama
+    networks:
+      - fkip-network
+
+  fkip-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fkip-frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - fkip-backend
+    networks:
+      - fkip-network
+
+networks:
+  fkip-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+  weaviate_data:
+  ollama_data:
+  document_uploads:

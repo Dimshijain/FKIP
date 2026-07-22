@@ -1,0 +1,57 @@
+FinXSystems Knowledge Intelligence Platform (FKIP) - Official System Architecture Specification
+
+1. SYSTEM OVERVIEW & NETWORKING PORTS
+- FKIP (FinXSystems Knowledge Intelligence Platform) is an enterprise AI platform for financial software intelligence, RAG document search, and database dependency mapping.
+- React Frontend Web Application: Runs on Port 5173.
+- FastAPI Backend Application API: Runs on Port 8000.
+- Weaviate Vector Database: Runs on Port 8081 (Internal HTTP port 8080, gRPC port 50052/50051).
+- Ollama Local AI Inference Engine: Runs on Port 11434.
+- PostgreSQL Relational Database: Runs on Port 5432.
+
+2. DATABASE ARCHITECTURE & COLLECTIONS
+- Relational Database Engine: PostgreSQL. Default database name is "fkip_db" (or "fkip").
+- Vector Database Engine: Weaviate.
+- Weaviate Schema Collections:
+  * "DocumentChunk": Stores semantic text chunks extracted from uploaded enterprise documents.
+  * "DnaAppFeature": Stores Core Banking application features and capability specifications.
+- PostgreSQL Relational Database Tables:
+  * "users": Stores user authentication details, email addresses, password hashes, and RBAC roles.
+  * "documents": Stores uploaded document metadata, file paths, file hashes, and ingestion statuses.
+  * "document_chunks": Stores relational text chunks, chunk indexes, and token counts.
+  * "oracle_metadata": Stores parsed Oracle DDL schema objects (tables, views, triggers, procedures, packages).
+  * "oracle_dependencies": Stores parent-child dependency relationships between Oracle database objects.
+  * "dna_applications": Stores registered Core Banking applications, app codes, names, and descriptions.
+  * "dna_app_features": Stores Core Banking application feature specifications and categories.
+  * "copilot_conversations": Stores AI Copilot chat session threads.
+  * "copilot_messages": Stores AI Copilot message history, suggestions, and context recommendations.
+  * "generated_documents": Stores generated Business Requirement Documents (BRD) and Software Requirement Specifications (SRS).
+  * "innovation_opportunities": Stores auto-discovered gap ideas and Kanban opportunity tickets.
+  * "search_audit_logs": Stores search query history, latencies, relevance scores, and hallucination flags.
+  * "user_feedback": Stores user rating scores and comments for search query log entries.
+
+3. ARTIFICIAL INTELLIGENCE & EMBEDDINGS
+- Local AI LLM Inference Model: Configured by default to "qwen2:0.5b" (or "llama3:latest").
+- Local Text Embedding Model: Configured by default to "all-minilm:latest" (all-minilm).
+- Document Ingestion Strategy: Cleaned text is segmented into 800-character chunks with a 100-character overlap.
+- Vector Hybrid Search: Configured in Weaviate using "relative_score" fusion type (HybridFusion.RELATIVE_SCORE) with MetadataQuery(score=True).
+
+4. SECURITY, RBAC & AUTHENTICATION
+- Authentication Mechanism: JSON Web Tokens (JWT) signed using the HS256 algorithm.
+- Password Hashing: Secure password hashing using bcrypt algorithm.
+- Role-Based Access Control (RBAC): Defines three distinct user roles:
+  * "ADMIN": Full system access, administrative controls, user management, and monitoring. Default email: admin@finxsystems.com
+  * "CREATOR": Document upload, schema ingestion, feature editing, and content creation access. Default email: creator@finxsystems.com
+  * "CONSUMER": Read-only access to Knowledge Search, AI Copilot, and Reports. Default email: consumer@finxsystems.com
+- Default Demo User Credentials: Seeded users use password "password123".
+
+5. API ROUTE SPECIFICATIONS
+- Allowed Document Upload Extensions: .pdf, .txt, .docx, .csv
+- Document Upload API: POST /api/documents/upload
+- Hybrid Search API: POST /api/search/hybrid
+- RAG Chat Assistant API: POST /api/search/chat
+- AI Copilot Threads API: POST /api/copilot/conversations
+- AI Copilot Chat API: POST /api/copilot/chat
+- Oracle DDL Upload API: POST /api/oracle/upload
+- Oracle Impact Analysis API: GET /api/oracle/impact-analysis
+- Executive Telemetry Report API: GET /api/reports/executive
+- Backend Health Status API: GET /health
