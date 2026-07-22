@@ -11,7 +11,8 @@ import {
   RefreshCw,
   Info,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  ExternalLink
 } from 'lucide-react';
 
 export default function KnowledgeGraph() {
@@ -28,6 +29,9 @@ export default function KnowledgeGraph() {
       setError('');
       const data = await api.get('/knowledge-graph');
       setGraph(data);
+      if (data.nodes && data.nodes.length > 0) {
+        setSelectedNode(data.nodes[0]);
+      }
     } catch (err) {
       console.error(err);
       setError('Failed to fetch connected knowledge graph. Please verify API is running.');
@@ -47,6 +51,15 @@ export default function KnowledgeGraph() {
   const filteredEdges = graph.edges.filter(e => 
     filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target)
   );
+
+  // Auto-select first filtered node if current selectedNode is excluded by filter
+  useEffect(() => {
+    if (filteredNodes.length > 0) {
+      if (!selectedNode || !filteredNodeIds.has(selectedNode.id)) {
+        setSelectedNode(filteredNodes[0]);
+      }
+    }
+  }, [filterType, graph]);
 
   // Layout calculation: Spaced-out 1050x700 Canvas with Multi-Ring Spacing
   const calculateNodePositions = (nodesList) => {
@@ -150,12 +163,16 @@ export default function KnowledgeGraph() {
     }
   };
 
+  const handleSelectNode = (node) => {
+    setSelectedNode(node);
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '32px', marginBottom: '8px' }}>Connected Knowledge Graph</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Visualize relational mappings and explorer connections between documentation, database schemas, applications, and innovation milestones.</p>
+          <p style={{ color: 'var(--text-muted)' }}>Visualize relational mappings and explore connections between documentation, database schemas, applications, and innovation milestones.</p>
         </div>
         <button onClick={loadGraphData} className="btn btn-secondary" style={{ gap: '8px' }}>
           <RefreshCw size={16} />
@@ -194,7 +211,7 @@ export default function KnowledgeGraph() {
             {['all', 'document', 'oracle_object', 'dna_feature', 'opportunity'].map(type => (
               <button 
                 key={type}
-                onClick={() => { setFilterType(type); setSelectedNode(null); }}
+                onClick={() => setFilterType(type)}
                 className={`btn ${filterType === type ? 'btn-primary' : 'btn-secondary'}`}
                 style={{ padding: '6px 14px', fontSize: '12px' }}
               >
@@ -291,11 +308,19 @@ export default function KnowledgeGraph() {
                   <g 
                     key={node.id} 
                     transform={`translate(${pos.x}, ${pos.y})`}
-                    onClick={() => setSelectedNode(node)}
+                    onClick={() => handleSelectNode(node)}
                     onMouseEnter={() => setHoveredNode(node)}
                     onMouseLeave={() => setHoveredNode(null)}
                     style={{ cursor: 'pointer' }}
                   >
+                    {/* Invisible Hit Zone Circle to guarantee 100% click reliability */}
+                    <circle 
+                      r={30} 
+                      fill="rgba(255,255,255,0.001)"
+                      onClick={(e) => { e.stopPropagation(); handleSelectNode(node); }}
+                      style={{ cursor: 'pointer', pointerEvents: 'all' }}
+                    />
+
                     {/* Pulsing selection / hover ring */}
                     {(isSelected || isHovered) && (
                       <circle 
@@ -305,6 +330,7 @@ export default function KnowledgeGraph() {
                         strokeWidth={2}
                         strokeOpacity={0.8}
                         style={{ filter: 'drop-shadow(0 0 6px ' + getNodeColor(node.type) + ')' }}
+                        onClick={(e) => { e.stopPropagation(); handleSelectNode(node); }}
                       />
                     )}
                     
@@ -314,10 +340,11 @@ export default function KnowledgeGraph() {
                       fill="var(--bg-sidebar)" 
                       stroke={getNodeColor(node.type)} 
                       strokeWidth={2.5}
+                      onClick={(e) => { e.stopPropagation(); handleSelectNode(node); }}
                     />
                     
                     {/* Icon wrapper */}
-                    <g transform="translate(-7, -7)" style={{ color: getNodeColor(node.type) }}>
+                    <g transform="translate(-7, -7)" style={{ color: getNodeColor(node.type) }} onClick={(e) => { e.stopPropagation(); handleSelectNode(node); }}>
                       {getNodeIcon(node.type)}
                     </g>
 
@@ -329,8 +356,10 @@ export default function KnowledgeGraph() {
                       fill={isSelected || isHovered ? 'var(--text-main)' : 'rgba(241, 245, 249, 0.85)'}
                       fontSize={isSelected || isHovered ? '11px' : '10px'}
                       fontWeight={isSelected || isHovered ? '700' : '500'}
+                      onClick={(e) => { e.stopPropagation(); handleSelectNode(node); }}
                       style={{ 
-                        pointerEvents: 'none',
+                        cursor: 'pointer',
+                        pointerEvents: 'all',
                         textShadow: '0px 1px 4px rgba(0,0,0,0.9)'
                       }}
                     >
@@ -343,16 +372,16 @@ export default function KnowledgeGraph() {
           </div>
 
           {/* Details Sidebar panel */}
-          <div className="card" style={{ minHeight: '400px' }}>
+          <div className="card" style={{ minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '18px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)' }}>
               <Info size={18} />
               <span>Node Details</span>
             </h3>
 
             {!selectedNode ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-dark)', padding: '80px 0' }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-dark)', padding: '60px 0' }}>
                 <Network size={40} style={{ opacity: 0.15, margin: '0 auto 16px auto' }} />
-                <p style={{ fontSize: '13px', lineHeight: 1.6 }}>Click on any node in the knowledge network visualizer to explore its properties and connections.</p>
+                <p style={{ fontSize: '13px', lineHeight: 1.6, marginBottom: '16px' }}>Select a node in the visualizer to explore properties.</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -364,7 +393,7 @@ export default function KnowledgeGraph() {
                 </div>
 
                 {/* Name */}
-                <h4 style={{ fontSize: '18px', fontWeight: 700 }}>
+                <h4 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}>
                   {selectedNode.label}
                 </h4>
 
@@ -381,13 +410,40 @@ export default function KnowledgeGraph() {
                 {/* Relations details */}
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
                   <h5 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Network Connections</h5>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>
-                    <div>Dependencies: <strong style={{ color: 'var(--text-main)' }}>{graph.edges.filter(e => e.source === selectedNode.id).length} nodes</strong></div>
-                    <div>Referenced by: <strong style={{ color: 'var(--text-main)' }}>{graph.edges.filter(e => e.target === selectedNode.id).length} nodes</strong></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                    <div>Outbound Dependencies: <strong style={{ color: 'var(--text-main)' }}>{graph.edges.filter(e => e.source === selectedNode.id).length} nodes</strong></div>
+                    <div>Inbound References: <strong style={{ color: 'var(--text-main)' }}>{graph.edges.filter(e => e.target === selectedNode.id).length} nodes</strong></div>
                   </div>
                 </div>
               </div>
             )}
+
+            {/* Quick Node List Selector for Accessibility */}
+            <div style={{ marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>
+                Quick Node Selector:
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '120px', overflowY: 'auto' }}>
+                {filteredNodes.map(node => (
+                  <button
+                    key={node.id}
+                    onClick={() => handleSelectNode(node)}
+                    style={{
+                      padding: '3px 8px',
+                      fontSize: '11px',
+                      borderRadius: '4px',
+                      border: selectedNode?.id === node.id ? '1px solid ' + getNodeColor(node.type) : '1px solid var(--border-color)',
+                      background: selectedNode?.id === node.id ? 'rgba(255,255,255,0.08)' : 'var(--bg-sidebar)',
+                      color: selectedNode?.id === node.id ? 'var(--text-main)' : 'var(--text-muted)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {node.label.length > 12 ? node.label.substring(0, 10) + '..' : node.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
           </div>
 
         </div>
