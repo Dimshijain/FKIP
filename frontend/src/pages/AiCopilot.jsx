@@ -13,7 +13,12 @@ import {
   ArrowRight,
   User,
   Cpu,
-  Brain
+  Brain,
+  MoreVertical,
+  Copy,
+  Edit3,
+  Check,
+  Highlighter
 } from 'lucide-react';
 
 export default function AiCopilot() {
@@ -27,6 +32,12 @@ export default function AiCopilot() {
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [newChatTitle, setNewChatTitle] = useState('New Audit Session');
   
+  // Message Actions state
+  const [activeMenuMsgId, setActiveMenuMsgId] = useState(null);
+  const [copiedMsgId, setCopiedMsgId] = useState(null);
+  const [editingMsgId, setEditingMsgId] = useState(null);
+  const [editingText, setEditingText] = useState('');
+
   const messagesEndRef = useRef(null);
 
   const loadConversations = async (selectFirst = false) => {
@@ -158,23 +169,19 @@ export default function AiCopilot() {
       };
       const res = await api.post('/copilot/chat', payload);
       
-      // If we created a new conversation session, reload list
       if (!activeConvId) {
         loadConversations();
         setActiveConvId(res.conversation_id);
       }
       
-      // Get conversation messages
       const updatedConv = await api.get(`/copilot/conversations/${res.conversation_id}`);
       setMessages(updatedConv.messages);
       setSuggestions(res.suggestions || []);
       setRecommendations(res.recommendations || []);
       
-      // Reload active conversations list to sync titles
       loadConversations();
     } catch (err) {
       console.error("Failed to send chat message", err);
-      // Append fallback error assistant response
       setMessages(prev => [...prev, {
         id: Math.random().toString(),
         role: 'assistant',
@@ -183,6 +190,38 @@ export default function AiCopilot() {
       }]);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  // Message Actions Handlers
+  const handleCopyMessage = (msgId, text) => {
+    navigator.clipboard.writeText(text);
+    setCopiedMsgId(msgId);
+    setTimeout(() => setCopiedMsgId(null), 2000);
+    setActiveMenuMsgId(null);
+  };
+
+  const handleStartEditMessage = (msgKey, content) => {
+    setEditingMsgId(msgKey);
+    setEditingText(content);
+    setActiveMenuMsgId(null);
+  };
+
+  const handleSaveEditedMessage = () => {
+    if (!editingText.trim()) return;
+    setEditingMsgId(null);
+    handleSendMessage(editingText);
+  };
+
+  const handleSelectTextMessage = (elementId) => {
+    setActiveMenuMsgId(null);
+    const el = document.getElementById(elementId);
+    if (el) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
     }
   };
 
@@ -287,44 +326,197 @@ export default function AiCopilot() {
               <p style={{ fontSize: '14px', maxWidth: '400px' }}>Ask me about database relationships, application catalogs, knowledge files, or generate custom recommendations.</p>
             </div>
           ) : (
-            messages.map((msg, idx) => (
-              <div 
-                key={msg.id || idx}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '80%',
-                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start'
-                }}
-              >
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '11px',
-                  color: 'var(--text-dark)',
-                  marginBottom: '4px',
-                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start'
-                }}>
-                  {msg.role === 'user' ? <User size={12} /> : <Cpu size={12} style={{ color: 'var(--color-primary)' }} />}
-                  <span>{msg.role === 'user' ? 'You' : 'FKIP Copilot'}</span>
+            messages.map((msg, idx) => {
+              const msgKey = msg.id || `temp-${idx}`;
+              const isEditing = editingMsgId === msgKey;
+              const isCopied = copiedMsgId === msgKey;
+              const isMenuOpen = activeMenuMsgId === msgKey;
+              const textElementId = `msg-text-${msgKey}`;
+
+              return (
+                <div 
+                  key={msgKey}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                    maxWidth: '85%',
+                    alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Sender Header & Message Actions Menu */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '11px',
+                    color: 'var(--text-dark)',
+                    marginBottom: '4px',
+                    alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start'
+                  }}>
+                    {msg.role === 'user' ? <User size={12} /> : <Cpu size={12} style={{ color: 'var(--color-primary)' }} />}
+                    <span>{msg.role === 'user' ? 'You' : 'FKIP Copilot'}</span>
+
+                    {/* Action Menu Container */}
+                    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: '4px' }}>
+                      {isCopied && (
+                        <span style={{ color: 'var(--status-completed)', fontSize: '10px', fontWeight: 600, marginRight: '4px' }}>
+                          Copied!
+                        </span>
+                      )}
+
+                      <button 
+                        onClick={() => setActiveMenuMsgId(isMenuOpen ? null : msgKey)}
+                        title="Message Actions"
+                        style={{
+                          background: isMenuOpen ? 'rgba(255,255,255,0.1)' : 'transparent',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          padding: '2px 4px',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {isMenuOpen && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          right: msg.role === 'user' ? 0 : 'auto',
+                          left: msg.role === 'user' ? 'auto' : 0,
+                          background: 'var(--bg-sidebar)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                          zIndex: 100,
+                          padding: '4px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
+                          minWidth: '130px'
+                        }}>
+                          {/* Copy Option */}
+                          <button 
+                            onClick={() => handleCopyMessage(msgKey, msg.content)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '6px 10px',
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--text-main)',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              borderRadius: '4px',
+                              textAlign: 'left'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                          >
+                            <Copy size={13} style={{ color: 'var(--color-secondary)' }} />
+                            <span>Copy Message</span>
+                          </button>
+
+                          {/* Select Text Option */}
+                          <button 
+                            onClick={() => handleSelectTextMessage(textElementId)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '6px 10px',
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--text-main)',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              borderRadius: '4px',
+                              textAlign: 'left'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                          >
+                            <Highlighter size={13} style={{ color: 'var(--color-primary)' }} />
+                            <span>Select Text</span>
+                          </button>
+
+                          {/* Edit Option (User messages only) */}
+                          {msg.role === 'user' && (
+                            <button 
+                              onClick={() => handleStartEditMessage(msgKey, msg.content)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '6px 10px',
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-main)',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                                borderRadius: '4px',
+                                textAlign: 'left'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                            >
+                              <Edit3 size={13} style={{ color: 'var(--status-completed)' }} />
+                              <span>Edit Message</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Inline Message Edit or Normal Bubble */}
+                  {isEditing ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', minWidth: '280px' }}>
+                      <textarea 
+                        className="form-input"
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        style={{ fontSize: '13px', width: '100%', minHeight: '60px', padding: '10px' }}
+                      />
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                        <button onClick={() => setEditingMsgId(null)} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '11px' }}>
+                          Cancel
+                        </button>
+                        <button onClick={handleSaveEditedMessage} className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '11px' }}>
+                          Save & Send
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      id={textElementId}
+                      style={{
+                        padding: '12px 16px',
+                        borderRadius: '12px',
+                        fontSize: '14px',
+                        lineHeight: '1.5',
+                        backgroundColor: msg.role === 'user' ? 'var(--color-primary)' : 'var(--bg-input)',
+                        color: 'var(--text-main)',
+                        border: msg.role === 'user' ? 'none' : '1px solid var(--border-color)',
+                        whiteSpace: 'pre-wrap',
+                        userSelect: 'text',
+                        WebkitUserSelect: 'text',
+                        MozUserSelect: 'text'
+                      }}
+                    >
+                      {msg.content}
+                    </div>
+                  )}
                 </div>
-                
-                <div style={{
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  lineHeight: '1.5',
-                  backgroundColor: msg.role === 'user' ? 'var(--color-primary)' : 'var(--bg-input)',
-                  color: 'var(--text-main)',
-                  border: msg.role === 'user' ? 'none' : '1px solid var(--border-color)',
-                  whiteSpace: 'pre-wrap'
-                }}>
-                  {msg.content}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
           {isSending && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
