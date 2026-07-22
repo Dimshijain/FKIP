@@ -1,0 +1,11 @@
+TREASURY RISK MANAGEMENT & LIQUIDITY SPECIFICATION
+DOCUMENT ID: SPEC-TREASURY-2026-007
+VERSION: 3.0
+AUTHOR: FinXSystems Corporate Treasury Group
+CLASSIFICATION: Sample Enterprise Specification
+
+1. LIQUIDITY COVERAGE RATIO (LCR)
+The Treasury Risk Manager (APP-TREASURY) continuously calculates the bank's LCR to ensure High-Quality Liquid Assets (HQLA) exceed 30-day projected net cash outflows during stress scenarios.
+
+2. INTEREST RATE RISK IN THE BANKING BOOK (IRRBB)
+The engine monitors net interest income (NII) sensitivity against parallel and non-parallel yield curve shocks (+200bps, -200bps). Automated interest rate swaps (IRS) are proposed when NII variance exceeds 5%.

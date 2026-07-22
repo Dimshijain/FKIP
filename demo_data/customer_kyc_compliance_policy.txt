@@ -1,0 +1,21 @@
+CUSTOMER KYC & AML COMPLIANCE POLICY
+DOCUMENT ID: POL-KYC-2026-003
+VERSION: 4.0
+AUTHOR: FinXSystems Legal & Risk Compliance Department
+CLASSIFICATION: Sample Enterprise Specification
+
+1. OVERVIEW & REGULATORY DIRECTIVES
+This document details the Know Your Customer (KYC) and Anti-Money Laundering (AML) verification procedures enforced across all core banking onboarding portals in compliance with FinCEN, FATF, and GDPR regulations.
+
+2. CUSTOMER IDENTIFICATION PROGRAM (CIP)
+During digital account creation, customers must submit:
+- Government-Issued Photo ID (Passport, Driver's License, National Identity Card).
+- Proof of Address (Utility Bill, Bank Statement dated within 90 days).
+- Biometric Selfie Liveness Check matching ID photo (minimum 98% confidence score).
+- Tax Identification Number (SSN / ITIN / EIN).
+
+3. RISK SCORING & ENHANCED DUE DILIGENCE (EDD)
+Every customer profile is assigned a dynamic Risk Rating (LOW, MEDIUM, HIGH):
+- Politically Exposed Persons (PEPs) automatically trigger High Risk / EDD review.
+- High Risk accounts undergo mandatory quarterly activity re-assessments.
+- Suspicious Activity Reports (SARs) are generated when transaction amounts exceed $10,000 USD within 24 hours without legitimate commercial purpose.

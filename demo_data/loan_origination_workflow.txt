@@ -1,0 +1,18 @@
+AUTOMATED LOAN ORIGINATION & CREDIT SCORING WORKFLOW
+DOCUMENT ID: SPEC-LOAN-2026-005
+VERSION: 2.4
+AUTHOR: FinXSystems Credit Risk & Lending Operations
+CLASSIFICATION: Sample Enterprise Specification
+
+1. LOAN APPLICATION STAGES
+The Loan Origination System (APP-LOAN) processes consumer personal loans, mortgages, and commercial lines of credit through five automated pipeline phases:
+- Stage 1: Application Intake & Document OCR Parsing (Paystubs, W2s, Tax Returns).
+- Stage 2: Credit Bureau Pull (Experian, TransUnion, Equifax API Integration).
+- Stage 3: Automated Underwriting Engine (FICO Score, Debt-to-Income Calculation).
+- Stage 4: Risk-Based Pricing & Interest Rate Calculation.
+- Stage 5: Digital Contract E-Signing & Automatic Account Disbursement.
+
+2. UNDERWRITING DECISIONING RULES
+- Auto-Approve: FICO Score >= 720 AND Debt-to-Income (DTI) ratio <= 35% AND zero bankruptcy records within 7 years.
+- Manual Underwriter Review: FICO Score between 620 and 719 OR DTI between 36% and 48%.
+- Auto-Decline: FICO Score < 620 OR DTI > 48% OR active tax lien records.

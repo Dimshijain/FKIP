@@ -1,0 +1,14 @@
+TRADE FINANCE LETTER OF CREDIT WORKFLOW
+DOCUMENT ID: SPEC-TRADE-2026-010
+VERSION: 1.2
+AUTHOR: FinXSystems International Trade Operations
+CLASSIFICATION: Sample Enterprise Specification
+
+1. SCOPE & UCP 600 COMPLIANCE
+The Trade Finance Module processes Commercial Letters of Credit (LC) and Standby Letters of Credit (SBLC) adhering strictly to ICC UCP 600 rules.
+
+2. LC ISSUANCE STAGES
+- Applicant Application & Credit Line Hold Approval.
+- Issuing Bank Document Verification (Bill of Lading, Commercial Invoice).
+- SWIFT MT700 Transmission to Advising / Confirming Bank.
+- Beneficiary Document Examination & Disbursement.

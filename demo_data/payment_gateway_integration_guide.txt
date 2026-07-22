@@ -1,0 +1,17 @@
+REAL-TIME PAYMENTS GATEWAY INTEGRATION GUIDE
+DOCUMENT ID: SPEC-PAY-2026-002
+VERSION: 2.1
+AUTHOR: FinXSystems Payments Engineering Team
+CLASSIFICATION: Sample Enterprise Specification
+
+1. INTRODUCTION & SCOPE
+The Real-Time Payments Gateway (APP-PAY) processes high-throughput retail and wholesale payment instructions across domestic and cross-border payment networks. The service supports ISO 20022 XML standards including pacs.008 (Financial Institution Transfer), pacs.009 (Financial Institution Credit Transfer), and camt.053 (Bank-to-Customer Statement).
+
+2. TRANSACTION WORKFLOW & LATENCY SLA
+- Pre-Validation: Validate IBAN formatting, account active status, and positive ledger balance. (SLA: < 15ms)
+- Anti-Money Laundering (AML) Screening: Real-time sanction list check against OFAC and EU lists. (SLA: < 25ms)
+- Ledger Debit/Credit Execution: Two-phase commit lock on debtor account ledger. (SLA: < 20ms)
+- Clearinghouse Transmission: Encrypted TLS 1.3 push to FedNow / RTP switch. (SLA: < 50ms)
+
+3. ERROR HANDLING & RETRY QUEUES
+Failed transmissions trigger automatic dead-letter queue (DLQ) isolation. Non-fatal timeout errors undergo exponential backoff retries (3 attempts max). Automated reversal entries (pacs.007) are emitted if acknowledgment is not received within 30 seconds.

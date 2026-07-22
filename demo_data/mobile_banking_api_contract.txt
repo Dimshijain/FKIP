@@ -1,0 +1,15 @@
+MOBILE BANKING REST API CONTRACT SPECIFICATION
+DOCUMENT ID: API-MOBILE-2026-008
+VERSION: 2.0
+AUTHOR: FinXSystems Mobile Platform Engineering
+CLASSIFICATION: Sample Enterprise Specification
+
+1. BASE URL & VERSIONS
+- Production API Base Endpoint: `https://api.finxsystems.com/v2`
+- Sandbox API Base Endpoint: `https://sandbox-api.finxsystems.com/v2`
+
+2. ENDPOINTS SUMMARY
+- GET `/accounts`: Retrieves active customer deposit and credit accounts.
+- POST `/transfers`: Initiates peer-to-peer or internal account transfers.
+- GET `/cards/limits`: Fetches current daily ATM and POS spending limits.
+- PUT `/cards/freeze`: Instantly freezes compromised debit or credit cards.

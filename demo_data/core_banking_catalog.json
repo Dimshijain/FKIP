@@ -1,87 +1,89 @@
 [
-    {
-        "app_code": "APP-CRM",
-        "app_name": "Customer Relationship Portal",
-        "owner": "Sales Ops",
-        "description": "Manages core banking client account logs and contact details.",
-        "version": "3.1.2",
-        "status": "ACTIVE",
-        "platform": "Spring Boot",
-        "features": [
-            {
-                "feature_name": "Client Login Verification",
-                "feature_description": "Validates username and hashed passwords using secure JWT claims.",
-                "category": "Security"
-            },
-            {
-                "feature_name": "Invoice Auto-Reconciliation Billing",
-                "feature_description": "Performs billing processes to reconcile invoices with bank transfers.",
-                "category": "Billing"
-            }
-        ]
-    },
-    {
-        "app_code": "APP-FIN",
-        "app_name": "Finance ledger controller",
-        "owner": "Finance Dept",
-        "description": "Debit and credit tracking software.",
-        "version": "1.0.4",
-        "status": "ACTIVE",
-        "platform": "Node.js",
-        "features": [
-            {
-                "feature_name": "Ledger Account Auto-Billing Validation",
-                "feature_description": "Validates active customer account invoices prior to debiting balances.",
-                "category": "Accounting"
-            }
-        ]
-    },
-    {
-        "app_code": "APP-AUTH",
-        "app_name": "Single Sign-On SSO Center",
-        "owner": "Security Team",
-        "description": "Central identity provider portal.",
-        "version": "5.0.0",
-        "status": "ACTIVE",
-        "platform": "Go",
-        "features": [
-            {
-                "feature_name": "Identity Session Login Authentication",
-                "feature_description": "Validates credentials, session keys, and claims to issue access tokens.",
-                "category": "Security"
-            }
-        ]
-    },
-    {
-        "app_code": "APP-SEARCH",
-        "app_name": "Global Lookup Crawler",
-        "owner": "Data Analytics",
-        "description": "Enterprise file indexer and keyword crawler.",
-        "version": "2.1",
-        "status": "ACTIVE",
-        "platform": "Python",
-        "features": [
-            {
-                "feature_name": "Text Keyword Indexer",
-                "feature_description": "Crawls local directories and builds quick lookup inverted index files.",
-                "category": "Search"
-            }
-        ]
-    },
-    {
-        "app_code": "APP-KBASE",
-        "app_name": "Knowledge Repository Web",
-        "owner": "Knowledge Ops",
-        "description": "Help center document wiki.",
-        "version": "1.2.0",
-        "status": "DEPRECATED",
-        "platform": "Ruby on Rails",
-        "features": [
-            {
-                "feature_name": "Document Semantic Finder",
-                "feature_description": "Allows search of knowledge base files using keyword lookup search index.",
-                "category": "Search"
-            }
-        ]
-    }
+  {
+    "app_code": "APP-CORE",
+    "app_name": "Core Banking Settlement Engine",
+    "description": "High-throughput central ledger settlement and interest posting service",
+    "features": [
+      {
+        "feature_name": "Customer Account Auto-Billing Validation",
+        "feature_description": "Performs nightly checks on active accounts to debit invoices and process billing statements",
+        "category": "Billing"
+      },
+      {
+        "feature_name": "Double-Entry Ledger Posting",
+        "feature_description": "Executes real-time debit and credit accounting ledger updates",
+        "category": "Accounting"
+      }
+    ]
+  },
+  {
+    "app_code": "APP-PAY",
+    "app_name": "Real-Time Payments Gateway",
+    "description": "ISO20022 compliant clearing switch for SWIFT, Fedwire, and RTP transfers",
+    "features": [
+      {
+        "feature_name": "ISO20022 Message Validation",
+        "feature_description": "Parses and validates pacs.008 and pacs.009 XML payment clearing messages",
+        "category": "Payments"
+      },
+      {
+        "feature_name": "Real-Time Wire Settlement",
+        "feature_description": "Executes instant high-value interbank electronic wire transfers",
+        "category": "Payments"
+      }
+    ]
+  },
+  {
+    "app_code": "APP-CRM",
+    "app_name": "Customer Accounts Management Portal",
+    "description": "Multi-channel digital account management and customer service portal",
+    "features": [
+      {
+        "feature_name": "Customer Account Auto-Billing Validation",
+        "feature_description": "Performs nightly checks on active accounts to debit invoices and process billing statements",
+        "category": "Billing"
+      },
+      {
+        "feature_name": "Biometric Identity Onboarding",
+        "feature_description": "Validates government photo IDs and selfie liveness during customer onboarding",
+        "category": "Onboarding"
+      }
+    ]
+  },
+  {
+    "app_code": "APP-FIN",
+    "app_name": "Finance Reconciliation Engine",
+    "description": "End-of-day general ledger audit reconciliation and trial balance service",
+    "features": [
+      {
+        "feature_name": "Customer Account Auto-Billing Validation",
+        "feature_description": "Performs nightly checks on active accounts to debit invoices and process billing statements",
+        "category": "Billing"
+      }
+    ]
+  },
+  {
+    "app_code": "APP-LOAN",
+    "app_name": "Automated Loan Origination System",
+    "description": "End-to-end credit scoring, mortgage underwriting, and loan disbursement pipeline",
+    "features": [
+      {
+        "feature_name": "Automated Credit Scoring & Underwriting",
+        "feature_description": "Calculates DTI ratios and credit bureau scores for automated loan approvals",
+        "category": "Lending"
+      }
+    ]
+  },
+  {
+    "app_code": "APP-FRAUD",
+    "app_name": "Real-Time Fraud Detection Engine",
+    "description": "Sub-10ms transaction velocity analysis and AI anomaly detection system",
+    "features": [
+      {
+        "feature_name": "Transaction Velocity Anomaly Scoring",
+        "feature_description": "Evaluates geographic velocity and purchase amount anomalies in real-time",
+        "category": "Security"
+      }
+    ]
+  }
 ]

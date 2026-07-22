@@ -1,0 +1,10 @@
+REAL-TIME TRANSACTION FRAUD SCORING RULES
+DOCUMENT ID: RULE-FRAUD-2026-009
+VERSION: 3.1
+AUTHOR: FinXSystems Fraud Risk Analytics Team
+CLASSIFICATION: Sample Enterprise Specification
+
+1. REAL-TIME VELOCITY RULES
+- Rule F-101: Greater than 3 card purchases within 5 minutes in different geographic locations -> IMPOSSIBLE TRAVEL -> DECLINE & SMS ALERT.
+- Rule F-102: ATM withdrawal exceeding $1,000 USD between 1:00 AM and 5:00 AM -> HIGH RISK -> STEP-UP OTP REQUIRED.
+- Rule F-103: Online e-commerce purchase exceeding $5,000 USD on new un-paired device -> REQUIRE BIOMETRIC VERIFICATION.

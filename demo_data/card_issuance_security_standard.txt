@@ -1,0 +1,16 @@
+CREDIT & DEBIT CARD ISSUANCE SECURITY STANDARD
+DOCUMENT ID: SEC-CARD-2026-004
+VERSION: 1.8
+AUTHOR: FinXSystems Information Security Division
+CLASSIFICATION: Sample Enterprise Specification
+
+1. PCI-DSS COMPLIANCE FRAMEWORK
+All card issuance, authorization, and settlement sub-systems strictly adhere to Payment Card Industry Data Security Standard (PCI-DSS v4.0).
+
+2. PRIMARY ACCOUNT NUMBER (PAN) TOKENIZATION
+- Raw 16-digit PANs must NEVER be stored in plain text or standard relational databases.
+- The Tokenization Engine replaces PANs with surrogate 16-digit tokens retaining the first 6 digits (BIN) and last 4 digits for routing and receipt display.
+- Cryptographic keys used for token vault encryption are rotated every 90 days using Hardware Security Modules (HSM FIPS 140-2 Level 3).
+
+3. PIN ENCRYPTION & HSM HARDENING
+Cardholder PIN blocks are encrypted using 3DES / AES DUKPT (Derived Unique Key Per Transaction) key management algorithms inside HSM modules before transmission over financial networks.

@@ -1,0 +1,13 @@
+CORE DEPOSIT ACCOUNTING LEDGER SPECIFICATION
+DOCUMENT ID: SPEC-LEDGER-2026-011
+VERSION: 2.8
+AUTHOR: FinXSystems Core Banking Accounting Division
+CLASSIFICATION: Sample Enterprise Specification
+
+1. GENERAL LEDGER POSTING RULES
+The Core Deposit Accounting Ledger enforces strict real-time double-entry bookkeeping: `Sum(Debits) == Sum(Credits)`.
+
+2. ACCOUNT TYPES & BALANCE CALCULATION
+- Checking (DDA): Demand Deposit Account supporting immediate debit card and wire clearing.
+- Savings (SAV): Interest-bearing account with monthly compounded interest calculation.
+- Certificate of Deposit (CD): Fixed-term deposit with penalty rules on premature withdrawal.

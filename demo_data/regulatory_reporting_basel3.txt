@@ -1,0 +1,11 @@
+BASEL III CAPITAL ADEQUACY REPORTING SPECIFICATION
+DOCUMENT ID: SPEC-BASEL-2026-012
+VERSION: 3.4
+AUTHOR: FinXSystems Regulatory & Financial Reporting Team
+CLASSIFICATION: Sample Enterprise Specification
+
+1. COMMON EQUITY TIER 1 (CET1) RATIO
+Calculates CET1 Capital divided by Risk-Weighted Assets (RWA). Minimum regulatory threshold enforced is 4.5% + 2.5% Capital Conservation Buffer = 7.0%.
+
+2. RISK-WEIGHTED ASSETS (RWA) FORMULA
+Applies risk-weight factors (0% for Sovereign US Treasuries, 20% for Interbank Claims, 50% for Mortgages, 100% for Corporate Loans) across all asset portfolios.

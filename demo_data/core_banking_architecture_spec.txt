@@ -1,0 +1,21 @@
+FKIP CORE BANKING SYSTEM ARCHITECTURE SPECIFICATION
+DOCUMENT ID: SPEC-CB-2026-001
+VERSION: 3.2
+AUTHOR: FinXSystems Enterprise Architecture Board
+CLASSIFICATION: Sample Enterprise Specification
+
+1. EXECUTIVE OVERVIEW
+The FKIP Core Banking Platform represents a next-generation distributed transaction accounting and ledger processing engine. The architecture employs microservices orchestration, event-driven message queuing (Kafka), high-availability PostgreSQL for ACID relational state, and Weaviate hybrid vector storage for unstructured knowledge intelligence.
+
+2. CORE MODULES & BOUNDARIES
+- Core Settlement Engine (APP-CORE): Handles real-time double-entry ledger posting, interest accrual, and end-of-day trial balance verification.
+- Payments Gateway (APP-PAY): Connects to SWIFT, Fedwire, and ACH networks using ISO20022 messaging standards.
+- Customer Portal (APP-CRM): Provides multi-channel customer account management and digital onboarding workflows.
+- Fraud Engine (APP-FRAUD): Performs sub-10ms transaction velocity analysis and AI anomaly scoring.
+- Treasury Manager (APP-TREASURY): Manages multi-currency liquidity limits, interest rate swaps, and overnight interbank borrowings.
+
+3. SECURITY & AUTHENTICATION MODEL
+All API communication is secured via OAuth2 Bearer tokens utilizing 256-bit JWT HS256 signatures with 30-minute expiration windows. Role-Based Access Control (RBAC) is strictly enforced across three tiers: ADMIN (Full operational privileges), CREATOR (Ingestion and parsing write rights), and CONSUMER (Read-only search and copilot access).
+
+4. WEAVIATE HYBRID VECTOR RAG ENGINE
+Unstructured documents are parsed, stripped of formatting noise, and segmented into 800-character text chunks with 100-character sliding overlaps. Chunks are converted into 384-dimensional dense vectors using the all-minilm embedding model and stored in Weaviate for BM25 + cosine hybrid retrieval.
