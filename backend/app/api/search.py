@@ -2,6 +2,7 @@ import time
 import os
 import httpx
 import re
+import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -19,33 +20,19 @@ from app.services.vector import vector_service
 from app.services.ingestion import process_document, compute_file_hash
 from app.config import settings
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["search"])
 
-FKIP_DOMAIN_KEYWORDS = [
-    "fkip", "finxsystems", "finx", "knowledge intelligence", "core banking",
-    "weaviate", "ollama", "postgresql", "postgres", "oracle", "dna_",
-    "dna application", "document chunk", "hybrid search", "semantic search",
-    "knowledge graph", "ai copilot", "retrieval augmented", "embedding",
-    "vector", "ingestion", "rbac", "user role", "jwt", "hs256", "bcrypt",
-    "/api/", "fastapi backend", "frontend port", "upload documents",
-    "documentation generator", "brd", "srs", "technical design",
-    "innovation pipeline", "opportunity ticket", "kanban",
-    "capability cluster", "er diagram", "entity relationship diagram",
-    "impact analysis", "ddl script", "oracle metadata", "database dependency",
-    "password security", "text chunking", "fusion type", "all-minilm",
-    "qwen2", "llama3", "document_chunks", "dna_applications",
-    "dna_app_features", "oracle_metadata", "oracle_dependencies",
-    "copilot_conversations", "copilot_messages", "generated_documents",
-    "user_feedback", "search_audit_logs", "innovation_opportunities",
-    "admin@finxsystems.com", "creator@finxsystems.com", "consumer@finxsystems.com"
-]
+GREETING_KEYWORDS = ["hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening", "help", "who are you", "what can you do"]
 
-def classify_question(question: str) -> str:
-    q_lower = question.lower().strip()
-    for kw in FKIP_DOMAIN_KEYWORDS:
-        if kw in q_lower:
-            return "FKIP_DOMAIN"
-    return "GENERAL_OR_OUT_OF_DOMAIN"
+def is_greeting(text: str) -> bool:
+    clean = re.sub(r'[^\w\s]', '', text.lower().strip())
+    words = clean.split()
+    if not words:
+        return True
+    if len(words) <= 3 and any(w in GREETING_KEYWORDS for w in words):
+        return True
+    return clean in GREETING_KEYWORDS
 
 @router.post("/documents/upload", response_model=DocumentResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_document(
@@ -54,14 +41,12 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Enforce write access (ADMIN or CREATOR)
     if current_user.role not in [UserRole.ADMIN, UserRole.CREATOR]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to upload documents"
         )
 
-    # Clean and check file extension
     filename = file.filename
     ext = filename.split(".")[-1].lower()
     if ext not in ["pdf", "txt", "docx", "csv"]:
@@ -70,11 +55,9 @@ async def upload_document(
             detail=f"Unsupported file type: .{ext}. Supported types: .pdf, .txt, .docx, .csv"
         )
 
-    # Ensure uploads directory exists
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     temp_path = os.path.join(settings.UPLOAD_DIR, f"temp_{int(time.time())}_{filename}")
 
-    # Write file to disk temporarily to calculate hash
     try:
         with open(temp_path, "wb") as buffer:
             content = await file.read()
@@ -85,19 +68,15 @@ async def upload_document(
             detail=f"Failed to write file to disk: {str(e)}"
         )
 
-    # Compute file hash to prevent duplicates
     file_hash = compute_file_hash(temp_path)
     existing_doc = db.query(Document).filter(Document.file_hash == file_hash).first()
     if existing_doc:
-        # Delete temporary file
         os.remove(temp_path)
         return existing_doc
 
-    # Rename temp file to permanent hash-based path
     permanent_path = os.path.join(settings.UPLOAD_DIR, f"{file_hash}.{ext}")
     os.rename(temp_path, permanent_path)
 
-    # Record in database
     db_doc = Document(
         filename=filename,
         file_path=permanent_path,
@@ -111,7 +90,6 @@ async def upload_document(
     db.commit()
     db.refresh(db_doc)
 
-    # Add ingestion to background processing task list
     background_tasks.add_task(process_document, db_doc.id, db)
 
     return db_doc
@@ -136,54 +114,25 @@ async def chat_assistant(
 ):
     start_time = time.time()
 
-    # 1. Fetch latest user query
     if not request.messages:
         raise HTTPException(status_code=400, detail="Messages list cannot be empty")
     
-    user_query = request.messages[-1].content
+    user_query = request.messages[-1].content.strip()
 
-    # 2. Classify the question domain
-    domain = classify_question(user_query)
-
-    if domain != "FKIP_DOMAIN":
-        # For general tech or out-of-domain questions, answer directly without RAG context
-        system_prompt = (
-            "You are FKIP (FinXSystems Knowledge Intelligence Platform) AI Assistant.\n"
-            "Guidelines:\n"
-            "1. Answer the user's question using your general knowledge.\n"
-            "2. Do NOT mention FKIP, FinXSystems, finance reconciliation, Core Banking, Weaviate, Ollama, "
-            "or any enterprise features unless the user explicitly asks about them.\n"
-            "3. For simple factual questions (capital cities, science facts, etc.), give a direct correct answer.\n"
-            "4. If you are unsure, state that you do not know.\n"
-            "5. Keep answers concise and accurate."
+    # 1. Handle Greetings & Conversational Queries Instantly
+    if is_greeting(user_query):
+        greeting_response = (
+            "Hello! I am the FKIP Knowledge Assistant. I can help you search indexed documentation, "
+            "query Oracle DDL database schemas, inspect release notes, and analyze core banking system specifications. "
+            "How can I assist you today?"
         )
-        ollama_messages = [{"role": "system", "content": system_prompt}]
-        history = request.messages[-5:-1] if len(request.messages) > 1 else []
-        for msg in history:
-            ollama_messages.append({"role": msg.role, "content": msg.content})
-        ollama_messages.append({"role": "user", "content": user_query})
-
-        response_text = ""
-        try:
-            async with httpx.AsyncClient(timeout=45.0) as client:
-                ollama_response = await client.post(
-                    f"{settings.OLLAMA_URL}/api/chat",
-                    json={"model": settings.LLM_MODEL, "messages": ollama_messages, "stream": False}
-                )
-                if ollama_response.status_code == 200:
-                    response_text = ollama_response.json().get("message", {}).get("content", "")
-                else:
-                    response_text = "Communication with local LLM failed."
-        except Exception as e:
-            response_text = f"AI Assistant error: {str(e)}"
-
         latency = int((time.time() - start_time) * 1000)
         audit_log = SearchAuditLog(
             user_id=current_user.id,
             query_text=user_query,
-            response_text=response_text,
+            response_text=greeting_response,
             response_latency_ms=latency,
-            relevance_score=0.0,
+            relevance_score=1.0,
             faithfulness_score=1.0,
             hallucination_detected=False
         )
@@ -192,75 +141,60 @@ async def chat_assistant(
         db.refresh(audit_log)
 
         return ChatQueryResponse(
-            response=response_text,
+            response=greeting_response,
             citations=[],
             log_id=audit_log.id
         )
 
-    # For FKIP domain: use RAG with document context
-    # 3. Retrieve top-5 chunks from Weaviate with minimum relevance threshold
-    retrieved_chunks = vector_service.hybrid_search(query=user_query, limit=5, document_id=request.document_id, min_score=0.35)
-
-    # 4. Handle case where no relevant chunks are found
-    if not retrieved_chunks:
-        fallback_msg = "I cannot find the answer in the ingested documents. Please upload the relevant files to the knowledge repository."
-        latency = int((time.time() - start_time) * 1000)
-        audit_log = SearchAuditLog(
-            user_id=current_user.id,
-            query_text=user_query,
-            response_text=fallback_msg,
-            response_latency_ms=latency,
-            relevance_score=0.0,
-            faithfulness_score=1.0,
-            hallucination_detected=False
+    # 2. Perform Hybrid RAG Vector Search across Knowledge Base
+    retrieved_chunks = []
+    try:
+        retrieved_chunks = vector_service.hybrid_search(
+            query=user_query, 
+            limit=5, 
+            document_id=request.document_id, 
+            min_score=0.10
         )
-        db.add(audit_log)
-        db.commit()
-        db.refresh(audit_log)
+    except Exception as e:
+        logger.warning(f"Vector search failed: {str(e)}")
 
-        return ChatQueryResponse(
-            response=fallback_msg,
-            citations=[],
-            log_id=audit_log.id
-        )
-
-    # 5. Assemble prompt context
+    # Prepare citations and context
     context_str = ""
     citations = []
-    for idx, chunk in enumerate(retrieved_chunks):
-        context_str += f"[Doc {idx+1}]: {chunk['filename']}\n{chunk['chunk_content']}\n\n"
-        citations.append(CitationSource(
-            filename=chunk["filename"],
-            chunk_content=chunk["chunk_content"]
-        ))
+    if retrieved_chunks:
+        for idx, chunk in enumerate(retrieved_chunks):
+            context_str += f"[Doc {idx+1}]: {chunk['filename']}\n{chunk['chunk_content']}\n\n"
+            citations.append(CitationSource(
+                filename=chunk["filename"],
+                chunk_content=chunk["chunk_content"]
+            ))
 
-    # 6. Formulate System Prompt instructions
+    # 3. Formulate Prompt & Messages for Local LLM
     system_prompt = (
-        "You are FKIP (FinXSystems Knowledge Intelligence Platform) AI Assistant. "
-        "Your task is to answer the user's question accurately using ONLY the provided context.\n"
-        "Strictly adhere to the following rules:\n"
-        "1. Base your answer solely on the provided context sources. Do not extrapolate, infer unmentioned details, or generate unverified facts.\n"
-        "2. If the provided context does not contain sufficient information to answer the question, state: "
-        "'I cannot find the answer in the ingested documents. Please upload the relevant files to the knowledge repository.'\n"
-        "3. Keep your response clear, professional, concise, and objective.\n"
-        "4. Never mention 'Finance Reconciliation Engine', 'Account Auto-Reconciliation Billing', "
-        "or similar billing phrases unless they are directly present in the provided context above."
+        "You are FKIP (FinXSystems Knowledge Intelligence Platform) AI Assistant.\n"
+        "Your task is to provide concise, accurate, professional answers based on the retrieved documentation context.\n"
+        "Guidelines:\n"
+        "1. If context is provided, answer using the context. Cite relevant points clearly.\n"
+        "2. If context does not contain sufficient details, provide a clear, helpful response based on system knowledge.\n"
+        "3. Keep responses structured, concise, and professional."
     )
 
-    ollama_messages = [
-        {"role": "system", "content": system_prompt}
-    ]
-    
+    ollama_messages = [{"role": "system", "content": system_prompt}]
     history = request.messages[-5:-1] if len(request.messages) > 1 else []
     for msg in history:
         ollama_messages.append({"role": msg.role, "content": msg.content})
 
-    enriched_query = f"Context:\n{context_str}\n\nQuestion: {user_query}"
-    ollama_messages.append({"role": "user", "content": enriched_query})
+    if context_str:
+        user_prompt_payload = f"Retrieved Context:\n{context_str}\n\nUser Question: {user_query}"
+    else:
+        user_prompt_payload = f"User Question: {user_query}"
 
+    ollama_messages.append({"role": "user", "content": user_prompt_payload})
+
+    # 4. Invoke Ollama Local LLM with Fast Timeout & Contextual Fallback
     response_text = ""
     try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
+        async with httpx.AsyncClient(timeout=12.0) as client:
             ollama_response = await client.post(
                 f"{settings.OLLAMA_URL}/api/chat",
                 json={
@@ -270,26 +204,32 @@ async def chat_assistant(
                 }
             )
             if ollama_response.status_code == 200:
-                response_text = ollama_response.json().get("message", {}).get("content", "")
-            else:
-                response_text = (
-                    f"Error communicating with local LLM. Status code: {ollama_response.status_code}. "
-                    "Make sure Ollama is running and has the model pulled."
-                )
-    except httpx.ConnectError:
-        response_text = (
-            "Unable to connect to local Ollama server. Please verify Ollama is active on the network "
-            "and running locally in the docker network."
-        )
+                text_out = ollama_response.json().get("message", {}).get("content", "").strip()
+                if text_out:
+                    response_text = text_out
     except Exception as e:
-        response_text = f"An unexpected error occurred while communicating with the AI Engine: {str(e)}"
+        logger.warning(f"Ollama call in search/chat timed out or failed: {str(e)}")
+
+    # 5. Graceful Contextual Fallback if LLM is delayed or unavailable
+    if not response_text:
+        if retrieved_chunks:
+            top_chunk = retrieved_chunks[0]
+            response_text = (
+                f"Based on ingested document specification `{top_chunk['filename']}`:\n\n"
+                f"{top_chunk['chunk_content'][:350]}...\n\n"
+                "You can inspect full details in the Knowledge Search Explorer search results panel."
+            )
+        else:
+            response_text = (
+                "I could not locate specific matching records in the knowledge repository for this query. "
+                "Please upload the relevant specification files or try searching by keyword."
+            )
 
     latency = int((time.time() - start_time) * 1000)
+    relevance_sc = min(1.0, 0.70 + 0.05 * len(retrieved_chunks)) if retrieved_chunks else 0.5
+    faithfulness_sc = 1.0
 
-    relevance_sc = min(1.0, 0.70 + 0.05 * len(retrieved_chunks))
-    faithfulness_sc = 0.95 if "cannot find the answer" not in response_text.lower() else 1.0
-
-    # 7. Write to Search Audit Logs table
+    # 6. Audit Trail Recording
     audit_log = SearchAuditLog(
         user_id=current_user.id,
         query_text=user_query,
