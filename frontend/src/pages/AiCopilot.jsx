@@ -49,7 +49,9 @@ export default function AiCopilot() {
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [editingText, setEditingText] = useState('');
 
-  const messagesEndRef = useRef(null);
+  // Refs for custom scroll management
+  const chatContainerRef = useRef(null);
+  const isUserScrolledUpRef = useRef(false);
 
   const loadModels = async () => {
     try {
@@ -81,13 +83,29 @@ export default function AiCopilot() {
     loadConversations(true);
   }, []);
 
+  // Track if user manually scrolled up in the chat container
+  const handleChatScroll = () => {
+    if (chatContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+      isUserScrolledUpRef.current = !isAtBottom;
+    }
+  };
+
+  // Scroll to bottom when messages change unless user has manually scrolled up
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current && !isUserScrolledUpRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   }, [messages]);
 
   const selectConversation = async (id) => {
     try {
       setActiveConvId(id);
+      isUserScrolledUpRef.current = false;
       const data = await api.get(`/copilot/conversations/${id}`);
       setMessages(data.messages);
       
@@ -135,6 +153,7 @@ export default function AiCopilot() {
       setConversations([data, ...conversations]);
       setActiveConvId(data.id);
       setMessages([]);
+      isUserScrolledUpRef.current = false;
       setSuggestions([
         "Explain the schema and dependencies of target tables.",
         "What capability clusters are registered in our Core Banking catalog?",
@@ -179,7 +198,9 @@ export default function AiCopilot() {
       created_at: new Date().toISOString()
     };
 
-    setMessages([...messages, tempUserMsg]);
+    // Reset user scroll lock so user's new message scrolls into view
+    isUserScrolledUpRef.current = false;
+    setMessages(prev => [...prev, tempUserMsg]);
     setInputMessage('');
     setIsSending(true);
     setSuggestions([]);
@@ -251,17 +272,37 @@ export default function AiCopilot() {
   const activeModelObj = availableModels.find(m => m.id === selectedModel) || availableModels[0];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 300px', height: 'calc(100vh - 80px)', gap: '20px' }}>
+    <div 
+      className="copilot-container"
+      style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '260px 1fr 300px', 
+        height: 'calc(100vh - 80px)', 
+        maxHeight: 'calc(100vh - 80px)', 
+        gap: '20px', 
+        overflow: 'hidden' 
+      }}
+    >
       
       {/* 1. Sidebar Session List */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '16px' }}>
-        <h3 style={{ fontSize: '16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div 
+        className="card copilot-sessions-panel" 
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          height: '100%', 
+          minHeight: 0,
+          padding: '16px', 
+          overflow: 'hidden' 
+        }}
+      >
+        <h3 style={{ fontSize: '16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <MessageSquare size={16} />
           <span>Audit Sessions</span>
         </h3>
         
         {/* Create new chat input */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexShrink: 0 }}>
           <input 
             type="text" 
             className="form-input" 
@@ -276,7 +317,7 @@ export default function AiCopilot() {
         </div>
 
         {/* Chats lists */}
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
           {isLoadingChats ? (
             <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading sessions...</p>
           ) : conversations.length === 0 ? (
@@ -334,9 +375,19 @@ export default function AiCopilot() {
       </div>
 
       {/* 2. Main Chat Area */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px' }}>
-        {/* Chat Header with Interactive Model Selector */}
-        <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+      <div 
+        className="card copilot-chat-panel" 
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          height: '100%', 
+          minHeight: 0,
+          padding: '20px', 
+          overflow: 'hidden' 
+        }}
+      >
+        {/* Fixed Chat Header with Interactive Model Selector */}
+        <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', flexShrink: 0 }}>
           <h2 style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Cpu size={18} style={{ color: 'var(--color-primary)' }} />
             <span>AI Copilot Workspace</span>
@@ -374,8 +425,22 @@ export default function AiCopilot() {
           </div>
         </div>
 
-        {/* Message Log */}
-        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '8px', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
+        {/* Scrollable Chat Message Log (Only this area scrolls) */}
+        <div 
+          ref={chatContainerRef}
+          onScroll={handleChatScroll}
+          style={{ 
+            flex: 1, 
+            minHeight: 0,
+            overflowY: 'auto', 
+            paddingRight: '8px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '16px', 
+            marginBottom: '16px',
+            scrollBehavior: 'smooth'
+          }}
+        >
           {messages.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', textAlign: 'center' }}>
               <Brain size={48} style={{ opacity: 0.1, marginBottom: '16px', color: 'var(--color-primary)' }} />
@@ -580,12 +645,11 @@ export default function AiCopilot() {
               <span>Copilot ({activeModelObj?.name || selectedModel}) is indexing context and thinking...</span>
             </div>
           )}
-          <div ref={messagesEndRef} />
         </div>
 
-        {/* Suggested Prompts Pill Row */}
+        {/* Fixed Suggested Prompts Pill Row */}
         {suggestions.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px', flexShrink: 0 }}>
             {suggestions.map((s, idx) => (
               <button 
                 key={idx}
@@ -613,8 +677,8 @@ export default function AiCopilot() {
           </div>
         )}
 
-        {/* Input Bar */}
-        <div style={{ display: 'flex', gap: '10px' }}>
+        {/* Fixed Bottom Input Bar */}
+        <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
           <input 
             type="text"
             className="form-input"
@@ -638,20 +702,30 @@ export default function AiCopilot() {
       </div>
 
       {/* 3. Right-hand Recommendations Panel */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '16px', overflowY: 'auto' }}>
-        <h3 style={{ fontSize: '15px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-secondary)' }}>
+      <div 
+        className="card copilot-recs-panel" 
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          height: '100%', 
+          minHeight: 0,
+          padding: '16px', 
+          overflow: 'hidden' 
+        }}
+      >
+        <h3 style={{ fontSize: '15px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-secondary)', flexShrink: 0 }}>
           <Compass size={16} />
           <span>Context Recommendations</span>
         </h3>
         
-        {recommendations.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--text-dark)', fontSize: '13px', padding: '40px 0' }}>
-            <Compass size={32} style={{ opacity: 0.1, margin: '0 auto 12px auto' }} />
-            <p>Relevant knowledge files or features will automatically appear here based on your conversation context.</p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {recommendations.map((rec, idx) => (
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
+          {recommendations.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-dark)', fontSize: '13px', padding: '40px 0' }}>
+              <Compass size={32} style={{ opacity: 0.1, margin: '0 auto 12px auto' }} />
+              <p>Relevant knowledge files or features will automatically appear here based on your conversation context.</p>
+            </div>
+          ) : (
+            recommendations.map((rec, idx) => (
               <div 
                 key={idx} 
                 style={{ 
@@ -686,9 +760,9 @@ export default function AiCopilot() {
                   {rec.description}
                 </p>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </div>
 
       <style>{`

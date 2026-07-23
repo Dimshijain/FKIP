@@ -91,13 +91,68 @@ h1, h2, h3, h4, h5, h6 {
 .app-container {
   display: flex;
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .main-content {
   flex: 1;
   padding: 40px;
   height: 100vh;
+  max-height: 100vh;
   overflow-y: auto;
+}
+
+/* Responsive Copilot Layout & Fixed Viewport Controls */
+@media (max-width: 1200px) {
+  .copilot-container {
+    grid-template-columns: 220px 1fr 260px !important;
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 992px) {
+  .main-content {
+    padding: 20px !important;
+  }
+  .copilot-container {
+    height: calc(100vh - 40px) !important;
+    max-height: calc(100vh - 40px) !important;
+    grid-template-columns: 200px 1fr !important;
+  }
+  .copilot-recs-panel {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+    height: auto;
+    overflow: auto;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+  }
+  .main-content {
+    padding: 12px !important;
+    height: auto;
+    overflow-y: visible !important;
+  }
+  .copilot-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .copilot-sessions-panel {
+    max-height: 200px;
+  }
+  .copilot-chat-panel {
+    height: 500px !important;
+  }
 }
 
 /* Auth Portal CSS Styles */
