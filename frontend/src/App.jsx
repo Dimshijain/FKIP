@@ -12,6 +12,7 @@ import AiCopilot from './pages/AiCopilot';
 import InnovationPipeline from './pages/InnovationPipeline';
 import KnowledgeGraph from './pages/KnowledgeGraph';
 import DocGenerator from './pages/DocGenerator';
+import SqlWriter from './pages/SqlWriter';
 import { api, getAuthToken } from './services/api';
 import { Cpu, AlertTriangle } from 'lucide-react';
 
@@ -105,6 +106,7 @@ export default function App() {
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/copilot" element={<AiCopilot />} />
                     <Route path="/search" element={<KnowledgeSearch />} />
+                    <Route path="/sql-writer" element={<SqlWriter />} />
                     <Route path="/oracle" element={<OracleIntelligence />} />
                     <Route path="/dna" element={<DnaCatalog />} />
                     <Route path="/opportunities" element={<InnovationPipeline />} />

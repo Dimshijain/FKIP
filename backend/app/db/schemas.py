@@ -325,3 +325,51 @@ class GraphEdge(BaseModel):
 class KnowledgeGraphResponse(BaseModel):
     nodes: List[GraphNode]
     edges: List[GraphEdge]
+
+# --- SQL WRITER SCHEMAS ---
+class SqlGenerateRequest(BaseModel):
+    prompt: str
+    dialect: Optional[str] = "ORACLE" # "ORACLE" or "POSTGRESQL"
+    table_context: Optional[List[str]] = None
+
+class SqlGenerateResponse(BaseModel):
+    id: UUID
+    prompt: str
+    dialect: str
+    generated_sql: str
+    explanation: str
+    is_safe: bool
+    safety_warning: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class SqlFormatRequest(BaseModel):
+    sql: str
+    dialect: Optional[str] = "ORACLE"
+
+class SqlFormatResponse(BaseModel):
+    formatted_sql: str
+
+class SqlExplainRequest(BaseModel):
+    sql: str
+    dialect: Optional[str] = "ORACLE"
+
+class SqlExplainResponse(BaseModel):
+    explanation: str
+
+class SqlSchemaColumn(BaseModel):
+    column_name: str
+    data_type: str
+    is_nullable: bool = True
+
+class SqlSchemaTable(BaseModel):
+    table_name: str
+    object_type: str
+    owner: str
+    columns: List[SqlSchemaColumn] = []
+
+class SqlSchemaTreeResponse(BaseModel):
+    tables: List[SqlSchemaTable]
+

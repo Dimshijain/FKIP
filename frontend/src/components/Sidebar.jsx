@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   MessageSquare,
   Network,
-  FileText
+  FileText,
+  Terminal
 } from 'lucide-react';
 import { setAuthToken, setUserRole, getUserRole } from '../services/api';
 
@@ -57,6 +58,14 @@ export default function Sidebar({ user, setUser }) {
         >
           <Search size={20} />
           <span>Knowledge Search</span>
+        </NavLink>
+
+        <NavLink 
+          to="/sql-writer" 
+          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+        >
+          <Terminal size={20} />
+          <span>AI SQL Writer</span>
         </NavLink>
         
         <NavLink 

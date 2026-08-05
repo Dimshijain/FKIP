@@ -221,3 +221,18 @@ class GeneratedDocument(Base):
     content = Column(Text, nullable=False)
     author = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class SqlGenerationHistory(Base):
+    __tablename__ = "sql_generation_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    prompt = Column(Text, nullable=False)
+    dialect = Column(String(20), nullable=False, default="ORACLE") # "ORACLE" or "POSTGRESQL"
+    generated_sql = Column(Text, nullable=False)
+    explanation = Column(Text, nullable=True)
+    is_safe = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+

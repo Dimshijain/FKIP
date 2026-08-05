@@ -11,6 +11,7 @@ from app.api.copilot import router as copilot_router
 from app.api.innovation import router as innovation_router
 from app.api.knowledge_graph import router as knowledge_graph_router
 from app.api.docs import router as docs_router
+from app.api.sql_writer import router as sql_writer_router
 from app.db.session import engine, Base
 from app.config import settings
 
@@ -48,6 +49,7 @@ app.include_router(copilot_router, prefix="/api")
 app.include_router(innovation_router, prefix="/api")
 app.include_router(knowledge_graph_router, prefix="/api")
 app.include_router(docs_router, prefix="/api")
+app.include_router(sql_writer_router, prefix="/api")
 
 @app.on_event("startup")
 def startup_event():
