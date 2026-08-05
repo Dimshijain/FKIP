@@ -74,8 +74,8 @@ class DocumentChunk(Base):
     __tablename__ = "document_chunks"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
-    chunk_index = Column(Integer, nullable=False)
+    document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True)
+    chunk_index = Column(Integer, nullable=False, index=True)
     chunk_content = Column(Text, nullable=False)
     token_count = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -144,8 +144,8 @@ class OracleMetadata(Base):
     __tablename__ = "oracle_metadata"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    object_name = Column(String(255), nullable=False)
-    object_type = Column(SQLEnum(OracleObjectType), nullable=False)
+    object_name = Column(String(255), nullable=False, index=True)
+    object_type = Column(SQLEnum(OracleObjectType), nullable=False, index=True)
     owner = Column(String(100), nullable=False)
     schema_definition = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -155,8 +155,8 @@ class OracleDependency(Base):
     __tablename__ = "oracle_dependencies"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source_object_id = Column(UUID(as_uuid=True), ForeignKey("oracle_metadata.id", ondelete="CASCADE"), nullable=False)
-    target_object_id = Column(UUID(as_uuid=True), ForeignKey("oracle_metadata.id", ondelete="CASCADE"), nullable=False)
+    source_object_id = Column(UUID(as_uuid=True), ForeignKey("oracle_metadata.id", ondelete="CASCADE"), nullable=False, index=True)
+    target_object_id = Column(UUID(as_uuid=True), ForeignKey("oracle_metadata.id", ondelete="CASCADE"), nullable=False, index=True)
     dep_type = Column(SQLEnum(DependencyType), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -165,7 +165,7 @@ class DnaApplication(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     app_code = Column(String(50), unique=True, nullable=False, index=True)
-    app_name = Column(String(255), nullable=False)
+    app_name = Column(String(255), nullable=False, index=True)
     owner = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     version = Column(String(50), nullable=False)
@@ -180,7 +180,7 @@ class DnaAppFeature(Base):
     __tablename__ = "dna_app_features"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    app_id = Column(UUID(as_uuid=True), ForeignKey("dna_applications.id", ondelete="CASCADE"), nullable=False)
+    app_id = Column(UUID(as_uuid=True), ForeignKey("dna_applications.id", ondelete="CASCADE"), nullable=False, index=True)
     feature_name = Column(String(255), nullable=False)
     feature_description = Column(Text, nullable=False)
     category = Column(String(100), nullable=False)
@@ -192,7 +192,7 @@ class CopilotConversation(Base):
     __tablename__ = "copilot_conversations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -203,7 +203,7 @@ class CopilotMessage(Base):
     __tablename__ = "copilot_messages"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    conversation_id = Column(UUID(as_uuid=True), ForeignKey("copilot_conversations.id", ondelete="CASCADE"), nullable=False)
+    conversation_id = Column(UUID(as_uuid=True), ForeignKey("copilot_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String(50), nullable=False) # 'user' or 'assistant'
     content = Column(Text, nullable=False)
     suggestions = Column(Text, nullable=True) # JSON list of strings (follow-up questions)
@@ -216,8 +216,8 @@ class GeneratedDocument(Base):
     __tablename__ = "generated_documents"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    doc_type = Column(String(50), nullable=False) # "BRD", "SRS", "TECH_DESIGN", "API_DOCS", "RELEASE_NOTES", "USER_MANUAL"
-    title = Column(String(255), nullable=False)
+    doc_type = Column(String(50), nullable=False, index=True) # "BRD", "SRS", "TECH_DESIGN", "API_DOCS", "RELEASE_NOTES", "USER_MANUAL"
+    title = Column(String(255), nullable=False, index=True)
     content = Column(Text, nullable=False)
     author = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -226,9 +226,9 @@ class SqlGenerationHistory(Base):
     __tablename__ = "sql_generation_history"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     prompt = Column(Text, nullable=False)
-    dialect = Column(String(20), nullable=False, default="ORACLE") # "ORACLE" or "POSTGRESQL"
+    dialect = Column(String(20), nullable=False, default="ORACLE", index=True) # "ORACLE" or "POSTGRESQL"
     generated_sql = Column(Text, nullable=False)
     explanation = Column(Text, nullable=True)
     is_safe = Column(Boolean, default=True)

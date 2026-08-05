@@ -85,10 +85,19 @@ async def upload_dna_catalog(
 
 @router.get("/apps", response_model=List[DnaApplicationResponse])
 def get_dna_applications(
+    skip: int = 0,
+    limit: int = 50,
+    search: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return db.query(DnaApplication).order_by(DnaApplication.app_code).all()
+    query = db.query(DnaApplication)
+    if search:
+        query = query.filter(
+            (DnaApplication.app_name.ilike(f"%{search}%")) |
+            (DnaApplication.app_code.ilike(f"%{search}%"))
+        )
+    return query.order_by(DnaApplication.app_code).offset(skip).limit(limit).all()
 
 @router.get("/clusters", response_model=List[CapabilityCluster])
 def get_capability_clusters(

@@ -206,30 +206,72 @@ export default function AiCopilot() {
     setSuggestions([]);
     
     try {
-      const payload = {
-        conversation_id: activeConvId,
-        message: text,
-        model: selectedModel
-      };
-      const res = await api.post('/copilot/chat', payload);
-      
-      if (!activeConvId) {
-        loadConversations();
-        setActiveConvId(res.conversation_id);
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/copilot/chat/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          conversation_id: activeConvId,
+          message: text,
+          model: selectedModel
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      const updatedConv = await api.get(`/copilot/conversations/${res.conversation_id}`);
-      setMessages(updatedConv.messages);
-      setSuggestions(res.suggestions || []);
-      setRecommendations(res.recommendations || []);
-      
+
+      const asstMsgId = 'asst-' + Date.now();
+      setMessages(prev => [...prev, {
+        id: asstMsgId,
+        role: 'assistant',
+        content: '',
+        created_at: new Date().toISOString()
+      }]);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedText = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6));
+              if (data.token) {
+                accumulatedText += data.token;
+                setMessages(prev => prev.map(m => m.id === asstMsgId ? { ...m, content: accumulatedText } : m));
+              }
+              if (data.done) {
+                if (data.conversation_id && !activeConvId) {
+                  setActiveConvId(data.conversation_id);
+                }
+                if (data.full_text) {
+                  setMessages(prev => prev.map(m => m.id === asstMsgId ? { ...m, content: data.full_text } : m));
+                }
+              }
+            } catch (e) {
+              // ignore partial chunk parse error
+            }
+          }
+        }
+      }
       loadConversations();
     } catch (err) {
-      console.error("Failed to send chat message", err);
+      console.error("Failed to send chat message via stream", err);
       setMessages(prev => [...prev, {
         id: Math.random().toString(),
         role: 'assistant',
-        content: "Error communicating with AI Copilot service. Please try again.",
+        content: "Error communicating with AI Copilot streaming service. Please try again.",
         created_at: new Date().toISOString()
       }]);
     } finally {

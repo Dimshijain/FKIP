@@ -55,6 +55,17 @@ services:
     #           count: all
     #           capabilities: [gpu]
 
+  fkip-redis:
+    image: redis:7-alpine
+    container_name: fkip-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - fkip-network
+
   fkip-backend:
     build:
       context: ./backend
@@ -70,6 +81,7 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       - WEAVIATE_URL=http://fkip-weaviate:8080
       - OLLAMA_URL=http://fkip-ollama:11434
+      - REDIS_URL=redis://fkip-redis:6379/0
       - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL:-all-minilm}
       - LLM_MODEL=${LLM_MODEL:-qwen2:0.5b}
     volumes:
@@ -81,6 +93,7 @@ services:
       - fkip-postgres
       - fkip-weaviate
       - fkip-ollama
+      - fkip-redis
     networks:
       - fkip-network
 
@@ -109,3 +122,4 @@ volumes:
   weaviate_data:
   ollama_data:
   document_uploads:
+  redis_data:

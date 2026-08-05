@@ -2,11 +2,13 @@ import time
 import os
 import httpx
 import re
+import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 
 from app.db.session import get_db
 from app.db.models import Document, SearchAuditLog, UserFeedback, IngestionStatus
@@ -18,6 +20,7 @@ from app.api.auth import get_current_user, check_user_role
 from app.db.models import User, UserRole
 from app.services.vector import vector_service
 from app.services.ingestion import process_document, compute_file_hash
+from app.services.cache import cache_service
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -95,15 +98,33 @@ async def upload_document(
     return db_doc
 
 @router.get("/documents", response_model=List[DocumentResponse])
-def get_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(Document).order_by(Document.created_at.desc()).all()
+def get_documents(
+    skip: int = 0,
+    limit: int = 50,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    query = db.query(Document)
+    if status:
+        query = query.filter(Document.status == status)
+    if search:
+        query = query.filter(Document.filename.ilike(f"%{search}%"))
+    return query.order_by(Document.created_at.desc()).offset(skip).limit(limit).all()
 
 @router.post("/search/hybrid", response_model=SearchQueryResponse)
 def search_hybrid(
     request: SearchQueryRequest,
     current_user: User = Depends(get_current_user)
 ):
+    cache_key = f"hybrid_search_{request.query}_{request.limit}_{request.document_id}"
+    cached = cache_service.get(cache_key)
+    if cached:
+        return SearchQueryResponse(query=request.query, results=cached)
+
     results = vector_service.hybrid_search(query=request.query, limit=request.limit, document_id=request.document_id)
+    cache_service.set(cache_key, results, ttl_seconds=180)
     return SearchQueryResponse(query=request.query, results=results)
 
 @router.post("/search/chat", response_model=ChatQueryResponse)
@@ -267,3 +288,68 @@ def submit_feedback(
     db.add(db_feedback)
     db.commit()
     return {"message": "Feedback submitted successfully"}
+
+@router.post("/search/chat/stream")
+async def chat_assistant_stream(
+    request: ChatQueryRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Stream Knowledge Search Assistant tokens via Server-Sent Events (SSE)."""
+    if not request.messages:
+        raise HTTPException(status_code=400, detail="Messages list cannot be empty")
+    
+    user_query = request.messages[-1].content.strip()
+
+    if is_greeting(user_query):
+        welcome_msg = (
+            "Hello! I am the FKIP Knowledge Assistant. I can help you search indexed documentation, "
+            "query Oracle DDL database schemas, inspect release notes, and analyze core banking system specifications. "
+            "How can I assist you today?"
+        )
+        async def greeting_stream():
+            yield f"data: {json.dumps({'token': welcome_msg, 'done': True, 'citations': []})}\n\n"
+        return StreamingResponse(greeting_stream(), media_type="text/event-stream")
+
+    chunks = vector_service.hybrid_search(query=user_query, limit=5, min_score=0.10)
+    context_str = ""
+    citations = []
+    for idx, c in enumerate(chunks):
+        context_str += f"[Chunk {idx+1} - {c['filename']}]: {c['chunk_content']}\n\n"
+        citations.append({"document_name": c["filename"], "relevance_score": c.get("score", 0.90)})
+
+    async def search_event_generator():
+        full_text = ""
+        try:
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                resp = await client.post(
+                    f"{settings.OLLAMA_URL}/api/generate",
+                    json={
+                        "model": "qwen2:0.5b",
+                        "prompt": f"Context:\n{context_str}\n\nQuestion: {user_query}",
+                        "stream": False
+                    }
+                )
+                if resp.status_code == 200:
+                    full_text = resp.json().get("response", "").strip()
+        except Exception as e:
+            logger.warning(f"Ollama SSE streaming error in search: {str(e)}")
+
+        if not full_text:
+            if chunks:
+                full_text = f"Based on indexed specification `{chunks[0]['filename']}`:\n{chunks[0]['chunk_content'][:350]}..."
+            else:
+                full_text = "No exact matching document context found in the enterprise knowledge base."
+
+        # Yield word chunks for smooth SSE streaming typing effect
+        import asyncio
+        words = full_text.split(" ")
+        for i in range(0, len(words), 3):
+            chunk_str = " ".join(words[i:i+3]) + (" " if i + 3 < len(words) else "")
+            yield f"data: {json.dumps({'token': chunk_str, 'done': False})}\n\n"
+            await asyncio.sleep(0.01)
+
+        yield f"data: {json.dumps({'token': '', 'done': True, 'full_text': full_text, 'citations': citations})}\n\n"
+
+    return StreamingResponse(search_event_generator(), media_type="text/event-stream")
+

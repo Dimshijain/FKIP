@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from app.db.session import get_db
@@ -8,6 +8,7 @@ from app.db.models import User, UserRole, OracleMetadata, OracleDependency
 from app.db.schemas import OracleMetadataResponse, OracleDependencyResponse, ImpactAnalysisItem
 from app.api.auth import get_current_user
 from app.services.oracle_parser import parse_ddl, get_impacted_objects
+from app.services.cache import cache_service
 
 router = APIRouter(prefix="/oracle", tags=["oracle"])
 
@@ -17,7 +18,6 @@ async def upload_oracle_ddl(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Enforce write access (ADMIN or CREATOR)
     if current_user.role not in [UserRole.ADMIN, UserRole.CREATOR]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -50,10 +50,19 @@ async def upload_oracle_ddl(
 
 @router.get("/objects", response_model=List[OracleMetadataResponse])
 def get_oracle_objects(
+    skip: int = 0,
+    limit: int = 100,
+    object_type: Optional[str] = None,
+    search: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return db.query(OracleMetadata).order_by(OracleMetadata.object_type, OracleMetadata.object_name).all()
+    query = db.query(OracleMetadata)
+    if object_type:
+        query = query.filter(OracleMetadata.object_type == object_type)
+    if search:
+        query = query.filter(OracleMetadata.object_name.ilike(f"%{search}%"))
+    return query.order_by(OracleMetadata.object_type, OracleMetadata.object_name).offset(skip).limit(limit).all()
 
 @router.get("/dependencies", response_model=List[OracleDependencyResponse])
 def get_oracle_dependencies(
@@ -68,7 +77,11 @@ def get_impact_analysis(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Check if object exists
+    cache_key = f"oracle_impact_{object_id}"
+    cached = cache_service.get(cache_key)
+    if cached:
+        return cached
+
     obj = db.query(OracleMetadata).filter(OracleMetadata.id == object_id).first()
     if not obj:
         raise HTTPException(
@@ -77,7 +90,9 @@ def get_impact_analysis(
         )
         
     try:
-        return get_impacted_objects(str(object_id), db)
+        res = get_impacted_objects(str(object_id), db)
+        cache_service.set(cache_key, [r.dict() if hasattr(r, 'dict') else r for r in res], ttl_seconds=120)
+        return res
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
