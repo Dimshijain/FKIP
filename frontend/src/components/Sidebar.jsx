@@ -1,149 +1,98 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Search, 
   Database, 
   AppWindow, 
   Lightbulb, 
-  LogOut, 
   Cpu,
   BarChart3,
   ShieldCheck,
   MessageSquare,
   Network,
   FileText,
-  Terminal
+  Terminal,
+  ChevronRight
 } from 'lucide-react';
-import { setAuthToken, setUserRole, getUserRole } from '../services/api';
+import { getUserRole } from '../services/api';
 
-export default function Sidebar({ user, setUser }) {
-  const navigate = useNavigate();
+export default function Sidebar({ isCollapsed }) {
   const role = getUserRole() || 'CONSUMER';
 
-  const handleLogout = () => {
-    setAuthToken(null);
-    setUserRole(null);
-    setUser(null);
-    navigate('/login');
-  };
+  const menuSections = [
+    {
+      title: 'INTELLIGENCE & AI',
+      items: [
+        { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+        { path: '/copilot', label: 'AI Copilot', icon: MessageSquare, badge: 'SSE' },
+        { path: '/search', label: 'Knowledge Search', icon: Search, badge: 'RAG' },
+        { path: '/sql-writer', label: 'AI SQL Writer', icon: Terminal, badge: 'New' }
+      ]
+    },
+    {
+      title: 'DATA & SYSTEMS',
+      items: [
+        { path: '/oracle', label: 'Oracle Intelligence', icon: Database },
+        { path: '/dna', label: 'Core Banking', icon: AppWindow },
+        { path: '/opportunities', label: 'Opportunities', icon: Lightbulb },
+        { path: '/knowledge-graph', label: 'Knowledge Graph', icon: Network }
+      ]
+    },
+    {
+      title: 'REPORTS & MANAGEMENT',
+      items: [
+        { path: '/docs-generator', label: 'Doc Generator', icon: FileText },
+        { path: '/reports', label: 'Reports & Analytics', icon: BarChart3 },
+        ...(role === 'ADMIN' ? [{ path: '/admin', label: 'Admin Console', icon: ShieldCheck, badge: 'Admin' }] : [])
+      ]
+    }
+  ];
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      {/* Brand Header */}
       <div className="sidebar-logo">
-        <Cpu size={28} className="sidebar-logo-icon" />
-        <span>FKIP</span>
+        <div className="logo-icon-wrapper">
+          <Cpu size={22} className="sidebar-logo-icon" />
+        </div>
+        {!isCollapsed && (
+          <div className="brand-text-wrapper">
+            <span className="brand-name">FKIP</span>
+            <span className="brand-subtext">Enterprise Suite</span>
+          </div>
+        )}
       </div>
 
+      {/* Navigation Links Grouped by Section */}
       <nav className="sidebar-menu">
-        <NavLink 
-          to="/" 
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <LayoutDashboard size={20} />
-          <span>Dashboard</span>
-        </NavLink>
-
-        <NavLink 
-          to="/copilot" 
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <MessageSquare size={20} />
-          <span>AI Copilot</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/search" 
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <Search size={20} />
-          <span>Knowledge Search</span>
-        </NavLink>
-
-        <NavLink 
-          to="/sql-writer" 
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <Terminal size={20} />
-          <span>AI SQL Writer</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/oracle" 
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <Database size={20} />
-          <span>Oracle Intelligence</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/dna" 
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <AppWindow size={20} />
-          <span>Core Banking</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/opportunities" 
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <Lightbulb size={20} />
-          <span>Opportunities</span>
-        </NavLink>
-
-        <NavLink 
-          to="/knowledge-graph" 
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <Network size={20} />
-          <span>Knowledge Graph</span>
-        </NavLink>
-
-        <NavLink 
-          to="/docs-generator" 
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <FileText size={20} />
-          <span>Doc Generator</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/reports" 
-          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-        >
-          <BarChart3 size={20} />
-          <span>Reports & Analytics</span>
-        </NavLink>
-
-        {role === 'ADMIN' && (
-          <NavLink 
-            to="/admin" 
-            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-          >
-            <ShieldCheck size={20} />
-            <span>Admin Console</span>
-          </NavLink>
-        )}
-      </nav>
-
-      {user && (
-        <div className="sidebar-footer">
-          <div className="user-profile">
-            <div className="user-avatar">
-              {user.email.substring(0, 2).toUpperCase()}
-            </div>
-            <div className="user-info">
-              <span className="user-email" title={user.email}>{user.email}</span>
-              <span className="user-role">{role}</span>
-            </div>
+        {menuSections.map((section, idx) => (
+          <div key={idx} className="menu-section">
+            {!isCollapsed && <div className="section-title">{section.title}</div>}
+            {section.items.map(item => {
+              const IconComp = item.icon;
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <IconComp size={18} className="link-icon" />
+                  {!isCollapsed && (
+                    <span className="link-label">{item.label}</span>
+                  )}
+                  {!isCollapsed && item.badge && (
+                    <span className={`link-badge ${item.badge === 'Admin' ? 'admin' : ''}`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </NavLink>
+              );
+            })}
           </div>
-          <button onClick={handleLogout} className="btn btn-secondary btn-full" style={{ gap: '8px' }}>
-            <LogOut size={16} />
-            <span>Logout</span>
-          </button>
-        </div>
-      )}
+        ))}
+      </nav>
     </aside>
   );
 }
