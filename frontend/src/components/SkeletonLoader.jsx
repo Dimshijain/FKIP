@@ -48,12 +48,11 @@ export const SkeletonTable = ({ rows = 5, cols = 4 }) => (
           padding: '16px 24px',
           borderBottom: r < rows - 1 ? '1px solid var(--border-color)' : 'none',
           display: 'flex',
-          gap: '16px',
-          alignItems: 'center',
+          gap: '16px'
         }}
       >
         {Array.from({ length: cols }).map((_, c) => (
-          <SkeletonBox key={c} width={`${100 / cols}%`} height="16px" />
+          <SkeletonBox key={c} width={`${100 / cols}%`} height="14px" />
         ))}
       </div>
     ))}

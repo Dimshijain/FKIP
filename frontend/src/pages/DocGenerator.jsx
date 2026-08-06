@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, getUserRole } from '../services/api';
 import { useToast } from '../components/ToastContext';
-import SkeletonBox, { SkeletonCard } from '../components/SkeletonLoader';
+import { SkeletonBox, SkeletonCard } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import { 
   FileText, 

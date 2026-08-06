@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useToast } from '../components/ToastContext';
-import SkeletonBox from '../components/SkeletonLoader';
+import { SkeletonBox } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import { 
   Network, 

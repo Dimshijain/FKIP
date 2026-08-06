@@ -12,7 +12,9 @@ from app.api.innovation import router as innovation_router
 from app.api.knowledge_graph import router as knowledge_graph_router
 from app.api.docs import router as docs_router
 from app.api.sql_writer import router as sql_writer_router
-from app.db.session import engine, Base
+from app.db.session import engine, Base, SessionLocal
+from app.db.models import User, UserRole
+from app.api.auth import get_password_hash
 from app.config import settings
 
 # Setup logging
@@ -54,9 +56,28 @@ app.include_router(sql_writer_router, prefix="/api")
 @app.on_event("startup")
 def startup_event():
     logger.info("Initializing FKIP relational database tables...")
-    # SQL DDL will build the structures if bootstrap_db script didn't run, 
-    # ensuring fallback schemas are initialized
     Base.metadata.create_all(bind=engine)
+    
+    # Seed default admin and creator users if database is empty
+    db = SessionLocal()
+    try:
+        if not db.query(User).first():
+            logger.info("Seeding default platform user accounts...")
+            seed_users = [
+                ("admin@finxsystems.com", "password123", UserRole.ADMIN),
+                ("creator@finxsystems.com", "password123", UserRole.CREATOR),
+                ("user@finxsystems.com", "password123", UserRole.CONSUMER)
+            ]
+            for email, plain_pass, role in seed_users:
+                hashed = get_password_hash(plain_pass)
+                db.add(User(email=email, password_hash=hashed, role=role))
+            db.commit()
+            logger.info("Default platform user accounts seeded successfully!")
+    except Exception as e:
+        logger.error(f"Error seeding user accounts: {e}")
+    finally:
+        db.close()
+    
     logger.info("FKIP Backend API has started up successfully.")
 
 @app.get("/health")
