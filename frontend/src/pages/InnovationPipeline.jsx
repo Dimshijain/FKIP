@@ -28,6 +28,7 @@ export default function InnovationPipeline() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const userRole = getUserRole() || 'CONSUMER';
   const toast = useToast();
 
