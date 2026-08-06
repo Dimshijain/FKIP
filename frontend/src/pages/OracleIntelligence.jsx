@@ -61,8 +61,10 @@ export default function OracleIntelligence() {
 
   const fetchSchemaData = async () => {
     try {
-      const objData = await api.get('/oracle/objects');
-      const depData = await api.get('/oracle/dependencies');
+      const [objData, depData] = await Promise.all([
+        api.get('/oracle/objects'),
+        api.get('/oracle/dependencies')
+      ]);
       setObjects(objData);
       setDependencies(depData);
     } catch (err) {

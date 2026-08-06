@@ -45,25 +45,19 @@ export default function SqlWriter() {
   const toast = useToast();
 
   useEffect(() => {
-    loadSchemaTree();
-    loadHistory();
+    loadInitialSqlData();
   }, []);
 
-  const loadSchemaTree = async () => {
+  const loadInitialSqlData = async () => {
     try {
-      const data = await api.get('/sql/schema');
-      setSchemaTree(data.tables || []);
+      const [schemaData, historyData] = await Promise.all([
+        api.get('/sql/schema'),
+        api.get('/sql/history')
+      ]);
+      setSchemaTree(schemaData.tables || []);
+      setHistoryList(historyData || []);
     } catch (err) {
-      console.error('Failed to load schema tree:', err);
-    }
-  };
-
-  const loadHistory = async () => {
-    try {
-      const data = await api.get('/sql/history');
-      setHistoryList(data || []);
-    } catch (err) {
-      console.error('Failed to load SQL history:', err);
+      console.error('Failed to load SQL metadata / history:', err);
     }
   };
 

@@ -31,8 +31,10 @@ export default function AdminDashboard() {
   const fetchAdminData = async () => {
     setIsLoading(true);
     try {
-      const usersData = await api.get('/admin/users');
-      const statsData = await api.get('/admin/monitoring');
+      const [usersData, statsData] = await Promise.all([
+        api.get('/admin/users'),
+        api.get('/admin/monitoring')
+      ]);
       setUsersList(usersData);
       setStats(statsData);
     } catch (err) {

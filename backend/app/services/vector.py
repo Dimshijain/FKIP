@@ -7,14 +7,32 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import time
+import socket
+
+def is_host_reachable(host, port, timeout=0.05):
+    # Fast path: skip docker-internal hostnames when running locally without docker network
+    if host in ["fkip-weaviate", "weaviate"]:
+        return False
+    try:
+        s = socket.create_connection((host, port), timeout=timeout)
+        s.close()
+        return True
+    except Exception:
+        return False
+
 class VectorService:
     def __init__(self):
         self._client = None
+        self._is_disabled = False
+        self._last_failed_time = 0
 
     @property
     def client(self):
+        if self._is_disabled and (time.time() - self._last_failed_time < 60):
+            return None
+
         if self._client is None:
-            logger.info(f"Connecting to Weaviate at {settings.WEAVIATE_URL}...")
             try:
                 from urllib.parse import urlparse
                 parsed = urlparse(settings.WEAVIATE_URL)
@@ -22,6 +40,14 @@ class VectorService:
                 port = parsed.port or 8080
                 secure = parsed.scheme == "https"
                 
+                # Fast socket check before blocking gRPC connect
+                if not is_host_reachable(host, port, timeout=0.05):
+                    logger.info(f"Weaviate host {host}:{port} unreachable. Disabling vector client.")
+                    self._is_disabled = True
+                    self._last_failed_time = time.time()
+                    return None
+
+                logger.info(f"Connecting to Weaviate at {settings.WEAVIATE_URL}...")
                 # Deduce grpc port
                 grpc_port = 50051
                 if port == 8081:
@@ -35,10 +61,13 @@ class VectorService:
                     grpc_port=grpc_port,
                     grpc_secure=False
                 )
+                self._is_disabled = False
                 self.init_schema()
             except Exception as e:
                 logger.error(f"Failed to connect to Weaviate: {str(e)}")
-                raise e
+                self._is_disabled = True
+                self._last_failed_time = time.time()
+                return None
         return self._client
 
     def init_schema(self):

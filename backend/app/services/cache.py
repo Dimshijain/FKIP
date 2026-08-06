@@ -8,12 +8,18 @@ logger = logging.getLogger(__name__)
 
 # Try importing redis
 try:
-    import redis
-    redis_client = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True, socket_timeout=2.0)
-    # Ping test
-    redis_client.ping()
-    HAS_REDIS = True
-    logger.info("Connected to Redis cache instance successfully.")
+    from urllib.parse import urlparse
+    redis_host = urlparse(settings.REDIS_URL).hostname
+    if redis_host in ["fkip-redis", "redis"]:
+        HAS_REDIS = False
+        redis_client = None
+        logger.info("Local environment detected (docker hostname fkip-redis). Using fast in-memory LRU cache.")
+    else:
+        import redis
+        redis_client = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True, socket_timeout=0.1)
+        redis_client.ping()
+        HAS_REDIS = True
+        logger.info("Connected to Redis cache instance successfully.")
 except Exception as e:
     HAS_REDIS = False
     redis_client = None

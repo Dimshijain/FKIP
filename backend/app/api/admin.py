@@ -74,9 +74,14 @@ def system_monitoring(
     # 2. Get DB size
     db_size = 0
     try:
-        db_size = db.execute(text("SELECT pg_database_size('fkip_db');")).scalar() or 0
+        if db.bind and db.bind.dialect.name == "sqlite":
+            import os
+            if os.path.exists("fkip_dev.db"):
+                db_size = os.path.getsize("fkip_dev.db")
+        else:
+            db_size = db.execute(text("SELECT pg_database_size('fkip_db');")).scalar() or 0
     except Exception as db_err:
-        logger.error(f"Error querying PG database size: {str(db_err)}")
+        logger.error(f"Error querying database size: {str(db_err)}")
         
     # 3. Check services health
     # Postgres status
@@ -86,27 +91,35 @@ def system_monitoring(
     weav_status = ServiceStatus(status="unknown", details="Weaviate service check skipped.")
     weav_size = 0
     try:
-        nodes = vector_service.client.cluster.nodes()
-        if nodes:
-            object_count = sum(node.stats.object_count for node in nodes if node.stats)
-            weav_status = ServiceStatus(status="healthy", details=f"Weaviate responding successfully. Objects: {object_count}")
-            # Approximate size based on object count
-            weav_size = object_count * 2048  # Estimate 2KB per vector record
+        vc = vector_service.client
+        if vc is not None:
+            nodes = vc.cluster.nodes()
+            if nodes:
+                object_count = sum(node.stats.object_count for node in nodes if node.stats)
+                weav_status = ServiceStatus(status="healthy", details=f"Weaviate responding successfully. Objects: {object_count}")
+                weav_size = object_count * 2048
+        else:
+            weav_status = ServiceStatus(status="offline", details="Weaviate offline / unreachable.")
     except Exception as weav_err:
         weav_status = ServiceStatus(status="degraded", details=f"Weaviate failed: {str(weav_err)}")
         
     # Ollama status
     ollama_status = ServiceStatus(status="unknown", details="Ollama connection skipped.")
     try:
-        resp = httpx.get(f"{settings.OLLAMA_URL}/api/tags", timeout=3.0)
-        if resp.status_code == 200:
-            models = [m["name"] for m in resp.json().get("models", [])]
-            ollama_status = ServiceStatus(
-                status="healthy", 
-                details=f"Ollama running. Loaded: {', '.join(models)}"
-            )
+        from urllib.parse import urlparse
+        ollama_host = urlparse(settings.OLLAMA_URL).hostname
+        if ollama_host in ["fkip-ollama", "ollama"]:
+            ollama_status = ServiceStatus(status="offline", details="Ollama host offline / unreachable.")
         else:
-            ollama_status = ServiceStatus(status="degraded", details=f"Ollama returned HTTP status {resp.status_code}")
+            resp = httpx.get(f"{settings.OLLAMA_URL}/api/tags", timeout=0.2)
+            if resp.status_code == 200:
+                models = [m["name"] for m in resp.json().get("models", [])]
+                ollama_status = ServiceStatus(
+                    status="healthy", 
+                    details=f"Ollama running. Loaded: {', '.join(models)}"
+                )
+            else:
+                ollama_status = ServiceStatus(status="degraded", details=f"Ollama returned HTTP status {resp.status_code}")
     except Exception as ollama_err:
         ollama_status = ServiceStatus(status="offline", details=f"Ollama offline: {str(ollama_err)}")
         

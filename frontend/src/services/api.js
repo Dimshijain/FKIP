@@ -18,6 +18,12 @@ export const setUserRole = (role) => {
   }
 };
 
+// In-memory SWR API cache map: path -> { data, timestamp }
+const cacheMap = new Map();
+const DEFAULT_CACHE_TTL_MS = 60000; // 60s cache TTL
+
+export const clearApiCache = () => cacheMap.clear();
+
 const request = async (method, path, body = null, isMultipart = false) => {
   const token = getAuthToken();
   const headers = {};
@@ -42,9 +48,10 @@ const request = async (method, path, body = null, isMultipart = false) => {
   const response = await fetch(`${API_BASE}${path}`, options);
 
   if (response.status === 401) {
-    // Session expired, clear tokens
+    // Session expired, clear tokens & cache
     setAuthToken(null);
     setUserRole(null);
+    clearApiCache();
     if (window.location.pathname !== '/login') {
       window.location.href = '/login';
     }
@@ -55,12 +62,23 @@ const request = async (method, path, body = null, isMultipart = false) => {
     throw new Error(errorData.detail || 'An error occurred during network request');
   }
 
-  return response.json();
+  const data = await response.json();
+
+  // Cache GET requests
+  if (method === 'GET') {
+    cacheMap.set(path, { data, timestamp: Date.now() });
+  } else {
+    // Invalidate GET cache on mutation operations
+    clearApiCache();
+  }
+
+  return data;
 };
 
 export const api = {
   // Auth endpoints
   login: async (email, password) => {
+    clearApiCache();
     const data = await request('POST', '/auth/login', { email, password, role: 'CONSUMER' });
     setAuthToken(data.access_token);
     // Fetch profile to get role
@@ -70,6 +88,7 @@ export const api = {
   },
   
   register: async (email, password, role) => {
+    clearApiCache();
     return request('POST', '/auth/register', { email, password, role });
   },
 
@@ -78,11 +97,12 @@ export const api = {
   },
 
   // Document endpoints
-  getDocuments: async () => {
-    return request('GET', '/documents');
+  getDocuments: async (options = {}) => {
+    return api.get('/documents', options);
   },
 
   uploadDocument: async (file) => {
+    clearApiCache();
     const formData = new FormData();
     formData.append('file', file);
     return request('POST', '/documents/upload', formData, true);
@@ -98,26 +118,46 @@ export const api = {
   },
 
   submitFeedback: async (logId, rating, comments = '') => {
+    clearApiCache();
     return request('POST', '/search/feedback', { log_id: logId, rating, comments });
   },
 
-  get: async (path) => {
+  get: async (path, options = {}) => {
+    const { useCache = true, ttlMs = DEFAULT_CACHE_TTL_MS, onBackgroundUpdate = null } = options;
+    const cached = cacheMap.get(path);
+    
+    if (useCache && cached && (Date.now() - cached.timestamp < ttlMs)) {
+      // Trigger background revalidation asynchronously
+      if (onBackgroundUpdate) {
+        request('GET', path).then(freshData => {
+          onBackgroundUpdate(freshData);
+        }).catch(() => {});
+      }
+      return cached.data;
+    }
+
     return request('GET', path);
   },
 
   post: async (path, body) => {
+    clearApiCache();
     return request('POST', path, body);
   },
 
   put: async (path, body) => {
+    clearApiCache();
     return request('PUT', path, body);
   },
 
   delete: async (path) => {
+    clearApiCache();
     return request('DELETE', path);
   },
 
   postMultipart: async (path, formData) => {
+    clearApiCache();
     return request('POST', path, formData, true);
-  }
+  },
+
+  clearCache: clearApiCache
 };
