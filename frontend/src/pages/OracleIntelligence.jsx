@@ -32,6 +32,7 @@ export default function OracleIntelligence() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [activeModalObject, setActiveModalObject] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState({ type: '', msg: '' });
   const toast = useToast();
   const fileInputRef = useRef(null);
   const mermaidRef = useRef(null);

@@ -29,6 +29,7 @@ export default function DnaCatalog() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [activeModalApp, setActiveModalApp] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState({ type: '', msg: '' });
   const toast = useToast();
   const fileInputRef = useRef(null);
 
