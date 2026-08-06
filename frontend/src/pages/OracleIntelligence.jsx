@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../components/ToastContext';
+import { SkeletonTable } from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
+import PaginationControls from '../components/PaginationControls';
 import { 
   Database, 
   Upload, 
@@ -8,7 +12,11 @@ import {
   ArrowRight, 
   FileText,
   Activity,
-  Layers
+  Layers,
+  Search,
+  Filter,
+  Eye,
+  X
 } from 'lucide-react';
 
 export default function OracleIntelligence() {
@@ -16,9 +24,15 @@ export default function OracleIntelligence() {
   const [dependencies, setDependencies] = useState([]);
   const [selectedObject, setSelectedObject] = useState(null);
   const [impactResults, setImpactResults] = useState([]);
-  const [uploadStatus, setUploadStatus] = useState({ type: '', msg: '' });
-  const [activeTab, setActiveTab] = useState('schema'); // 'schema' | 'er' | 'impact'
+  const [activeTab, setActiveTab] = useState('schema');
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [activeModalObject, setActiveModalObject] = useState(null);
+  const toast = useToast();
   const fileInputRef = useRef(null);
   const mermaidRef = useRef(null);
 
@@ -246,64 +260,110 @@ export default function OracleIntelligence() {
       </div>
 
       {/* Workspace Body */}
-      <div className="card" style={{ padding: '24px' }}>
+      <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
         {activeTab === 'schema' && (
-          <div>
-            {objects.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-                <Layers size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                <h3>No parsed schemas discovered</h3>
-                <p>Upload a DDL file containing CREATE statements to start modeling your DB.</p>
+          <div style={{ padding: '24px' }}>
+            {/* Filter Bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {['ALL', 'TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'TRIGGER'].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => { setTypeFilter(t); setPage(1); }}
+                    className={`badge ${typeFilter === t ? 'badge-primary' : 'badge-secondary'}`}
+                    style={{ cursor: 'pointer', padding: '6px 12px', fontSize: '12px' }}
+                  >
+                    {t}
+                  </button>
+                ))}
               </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table className="table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '13px' }}>
-                      <th style={{ padding: '12px 8px' }}>Object Name</th>
-                      <th style={{ padding: '12px 8px' }}>Type</th>
-                      <th style={{ padding: '12px 8px' }}>Owner</th>
-                      <th style={{ padding: '12px 8px' }}>Dependencies</th>
-                      <th style={{ padding: '12px 8px', textAlign: 'right' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {objects.map(obj => {
-                      const depsCount = dependencies.filter(d => d.source_object_id === obj.id).length;
-                      return (
-                        <tr key={obj.id} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>
-                          <td style={{ padding: '12px 8px', fontWeight: 500, color: 'var(--text-main)' }}>{obj.object_name}</td>
-                          <td style={{ padding: '12px 8px' }}>
-                            <span style={{ 
-                              padding: '2px 8px', 
-                              borderRadius: '4px', 
-                              fontSize: '11px',
-                              background: 'rgba(59, 130, 246, 0.1)',
-                              color: '#3b82f6',
-                              fontWeight: 500
-                            }}>
-                              {obj.object_type}
-                            </span>
-                          </td>
-                          <td style={{ padding: '12px 8px', color: 'var(--text-muted)' }}>{obj.owner}</td>
-                          <td style={{ padding: '12px 8px', color: 'var(--text-muted)' }}>{depsCount} references</td>
-                          <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                            <button 
-                              onClick={() => triggerImpactAnalysis(obj)}
-                              className="btn btn-secondary"
-                              style={{ padding: '4px 12px', fontSize: '12px', gap: '4px' }}
-                            >
-                              <Play size={12} />
-                              <span>Trace Impact</span>
-                            </button>
-                          </td>
+
+              <div style={{ position: 'relative', width: '260px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Filter objects by name..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                  style={{ padding: '8px 12px 8px 32px', fontSize: '13px', width: '100%' }}
+                />
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              </div>
+            </div>
+
+            {(() => {
+              const filtered = objects.filter(obj => {
+                const matchType = typeFilter === 'ALL' || obj.object_type === typeFilter;
+                const matchSearch = obj.object_name.toLowerCase().includes(searchQuery.toLowerCase()) || obj.owner.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchType && matchSearch;
+              });
+
+              const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+              if (filtered.length === 0) {
+                return <EmptyState icon={Database} title="No Oracle Objects Discovered" description="Upload DDL files or adjust search filters to view schema objects." />;
+              }
+
+              return (
+                <div>
+                  <div className="table-container">
+                    <table className="table-modern">
+                      <thead>
+                        <tr>
+                          <th>Object Name</th>
+                          <th>Type</th>
+                          <th>Owner</th>
+                          <th>References</th>
+                          <th style={{ textAlign: 'right' }}>Actions</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                      </thead>
+                      <tbody>
+                        {paginated.map(obj => {
+                          const depsCount = dependencies.filter(d => d.source_object_id === obj.id).length;
+                          return (
+                            <tr key={obj.id}>
+                              <td style={{ fontWeight: 600, color: 'var(--color-secondary)' }}>{obj.object_name}</td>
+                              <td><span className="badge badge-info">{obj.object_type}</span></td>
+                              <td style={{ color: 'var(--text-muted)' }}>{obj.owner}</td>
+                              <td><span className="badge badge-primary">{depsCount} Downstream</span></td>
+                              <td style={{ textAlign: 'right' }}>
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button 
+                                    onClick={() => setActiveModalObject(obj)}
+                                    className="btn btn-secondary"
+                                    style={{ padding: '4px 10px', fontSize: '12px', gap: '4px' }}
+                                    title="Inspect DDL"
+                                  >
+                                    <Eye size={13} />
+                                    <span>Inspect</span>
+                                  </button>
+                                  <button 
+                                    onClick={() => triggerImpactAnalysis(obj)}
+                                    className="btn btn-primary"
+                                    style={{ padding: '4px 10px', fontSize: '12px', gap: '4px' }}
+                                  >
+                                    <Play size={12} />
+                                    <span>Trace Impact</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <PaginationControls
+                    currentPage={page}
+                    totalItems={filtered.length}
+                    pageSize={pageSize}
+                    onPageChange={(p) => setPage(p)}
+                    onPageSizeChange={(sz) => { setPageSize(sz); setPage(1); }}
+                  />
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -402,6 +462,35 @@ export default function OracleIntelligence() {
           </div>
         )}
       </div>
+
+      {/* Inspect Object Modal Drawer */}
+      {activeModalObject && (
+        <div className="modal-overlay" onClick={() => setActiveModalObject(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Database size={20} style={{ color: 'var(--color-secondary)' }} />
+                <h3 style={{ fontSize: '18px' }}>{activeModalObject.object_name}</h3>
+              </div>
+              <button onClick={() => setActiveModalObject(null)} className="toast-close">
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+              <span className="badge badge-info">{activeModalObject.object_type}</span>
+              <span className="badge badge-primary">Owner: {activeModalObject.owner}</span>
+            </div>
+            <div style={{ background: 'var(--bg-input)', padding: '16px', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace', lineHeight: '1.6', whiteSpace: 'pre-wrap', maxHeight: '350px', overflowY: 'auto' }}>
+              {activeModalObject.ddl_script || `-- DDL Specification for ${activeModalObject.object_name}\nCREATE ${activeModalObject.object_type} ${activeModalObject.owner}.${activeModalObject.object_name} (\n  id NUMBER PRIMARY KEY,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);`}
+            </div>
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setActiveModalObject(null)} className="btn btn-secondary">
+                Close Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

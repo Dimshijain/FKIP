@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../components/ToastContext';
+import { SkeletonTable } from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
+import PaginationControls from '../components/PaginationControls';
 import { 
   AppWindow, 
   Upload, 
@@ -8,16 +12,24 @@ import {
   FileJson, 
   TrendingUp, 
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Search,
+  Eye,
+  X,
+  Code
 } from 'lucide-react';
 
 export default function DnaCatalog() {
   const [apps, setApps] = useState([]);
   const [clusters, setClusters] = useState([]);
   const [threshold, setThreshold] = useState(0.80);
-  const [uploadStatus, setUploadStatus] = useState({ type: '', msg: '' });
   const [isUploading, setIsUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState('catalog'); // 'catalog' | 'clusters'
+  const [activeTab, setActiveTab] = useState('catalog');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [activeModalApp, setActiveModalApp] = useState(null);
+  const toast = useToast();
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -166,49 +178,74 @@ export default function DnaCatalog() {
       <div className="card" style={{ padding: '24px' }}>
         {activeTab === 'catalog' && (
           <div>
-            {apps.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-                <FileJson size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                <h3>No indexed applications found</h3>
-                <p>Ingest a Core Banking catalog JSON or CSV specifying application metrics and functional scopes.</p>
+            {/* Search Filter Bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ position: 'relative', width: '300px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search application name or code..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                  style={{ padding: '8px 12px 8px 32px', fontSize: '13px', width: '100%' }}
+                />
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-                {apps.map(app => (
-                  <div key={app.id} style={{ 
-                    padding: '20px', 
-                    borderRadius: '8px', 
-                    background: '#0d1321', 
-                    border: '1px solid var(--border-color)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between'
-                  }}>
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 'bold', textTransform: 'uppercase' }}>{app.app_code}</span>
-                        <span style={{ 
-                          fontSize: '11px', 
-                          padding: '2px 8px', 
-                          borderRadius: '4px', 
-                          background: 'rgba(255,255,255,0.05)',
-                          color: 'var(--text-muted)'
-                        }}>
-                          {app.platform}
-                        </span>
-                      </div>
-                      <h3 style={{ color: 'var(--text-main)', marginBottom: '8px', fontSize: '18px' }}>{app.app_name}</h3>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: '1.4', marginBottom: '16px' }}>{app.description}</p>
-                    </div>
+              <span className="badge badge-secondary">{apps.length} Total Systems</span>
+            </div>
 
-                    <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
-                      <span>Owner: {app.owner}</span>
-                      <span style={{ fontWeight: 500, color: 'var(--text-main)' }}>{app.features.length} Features</span>
-                    </div>
+            {(() => {
+              const filtered = apps.filter(app => 
+                app.app_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                app.app_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                app.description.toLowerCase().includes(searchQuery.toLowerCase())
+              );
+
+              const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+              if (filtered.length === 0) {
+                return <EmptyState icon={AppWindow} title="No Applications Found" description="Upload Core Banking catalog JSON or adjust your search filter." />;
+              }
+
+              return (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+                    {paginated.map(app => (
+                      <div key={app.id} className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderLeft: '4px solid var(--color-primary)' }}>
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span className="badge badge-primary">{app.app_code}</span>
+                            <span className="badge badge-secondary">{app.platform}</span>
+                          </div>
+                          <h3 style={{ color: 'var(--text-main)', marginBottom: '8px', fontSize: '18px' }}>{app.app_name}</h3>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: '1.5', marginBottom: '16px' }}>{app.description}</p>
+                        </div>
+
+                        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Owner: {app.owner}</span>
+                          <button 
+                            onClick={() => setActiveModalApp(app)}
+                            className="btn btn-secondary"
+                            style={{ padding: '4px 10px', fontSize: '12px', gap: '4px' }}
+                          >
+                            <Eye size={12} />
+                            <span>{app.features.length} Features</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+
+                  <PaginationControls
+                    currentPage={page}
+                    totalItems={filtered.length}
+                    pageSize={pageSize}
+                    onPageChange={(p) => setPage(p)}
+                    onPageSizeChange={(sz) => { setPageSize(sz); setPage(1); }}
+                  />
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -324,6 +361,43 @@ export default function DnaCatalog() {
           </div>
         )}
       </div>
+
+      {/* Inspect App Features Modal */}
+      {activeModalApp && (
+        <div className="modal-overlay" onClick={() => setActiveModalApp(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AppWindow size={20} style={{ color: 'var(--color-primary)' }} />
+                <h3 style={{ fontSize: '18px' }}>{activeModalApp.app_name} ({activeModalApp.app_code})</h3>
+              </div>
+              <button onClick={() => setActiveModalApp(null)} className="toast-close">
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+              <span className="badge badge-primary">{activeModalApp.platform}</span>
+              <span className="badge badge-secondary">Owner: {activeModalApp.owner}</span>
+            </div>
+            
+            <h4 style={{ fontSize: '14px', marginBottom: '12px' }}>Registered Capabilities & Features ({activeModalApp.features.length})</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto' }}>
+              {activeModalApp.features.map((feat, idx) => (
+                <div key={idx} style={{ background: 'var(--bg-input)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-secondary)' }}>{feat.feature_name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{feat.feature_description}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setActiveModalApp(null)} className="btn btn-secondary">
+                Close Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

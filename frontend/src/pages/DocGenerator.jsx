@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api, getUserRole } from '../services/api';
+import { useToast } from '../components/ToastContext';
+import SkeletonBox, { SkeletonCard } from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 import { 
   FileText, 
   Cpu, 
@@ -15,7 +18,9 @@ import {
   FileSpreadsheet,
   Globe,
   Printer,
-  ChevronDown
+  ChevronDown,
+  Sparkles,
+  FilePlus
 } from 'lucide-react';
 
 // --- MARKDOWN PARSING AND HTML FORMATTING UTILITIES ---
@@ -350,6 +355,7 @@ export default function DocGenerator() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const userRole = getUserRole() || 'CONSUMER';
+  const toast = useToast();
 
   const loadDocList = async () => {
     try {
@@ -358,7 +364,7 @@ export default function DocGenerator() {
       setDocList(data);
     } catch (err) {
       console.error(err);
-      setError('Failed to fetch generated specs registry.');
+      toast.error('Failed to fetch generated specs registry.');
     } finally {
       setIsLoadingList(false);
     }
@@ -370,28 +376,26 @@ export default function DocGenerator() {
 
   const handleGenerate = async () => {
     if (!docTitle.trim()) {
-      setError('Please provide a document title.');
+      toast.warning('Please provide a document title.');
       return;
     }
 
     if (userRole === 'CONSUMER') {
-      setError('Viewer accounts cannot trigger AI doc generation.');
+      toast.error('Viewer accounts cannot trigger AI doc generation.');
       return;
     }
 
     setIsGenerating(true);
-    setError('');
-    setSuccess('');
 
     try {
       const res = await api.post('/docs/generate', { doc_type: docType, title: docTitle });
       setDocList([res, ...docList]);
-      setSuccess(`Successfully drafted ${docType} "${docTitle}" using Ollama.`);
+      toast.success(`Successfully drafted ${docType} "${docTitle}".`);
       setSelectedDocId(res.id);
       setSelectedDocContent(res);
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Auto-draft generation failed. Please verify LLM server.');
+      toast.error(err.message || 'Auto-draft generation failed.');
     } finally {
       setIsGenerating(false);
     }

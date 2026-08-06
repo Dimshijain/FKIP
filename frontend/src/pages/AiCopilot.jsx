@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../components/ToastContext';
+import SkeletonBox from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 import { 
   MessageSquare, 
   Send, 
@@ -19,7 +22,9 @@ import {
   Edit3,
   Check,
   Highlighter,
-  Sliders
+  Sliders,
+  Search,
+  Sparkles
 } from 'lucide-react';
 
 export default function AiCopilot() {
@@ -32,6 +37,8 @@ export default function AiCopilot() {
   const [isSending, setIsSending] = useState(false);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [newChatTitle, setNewChatTitle] = useState('New Audit Session');
+  const [sessionSearch, setSessionSearch] = useState('');
+  const toast = useToast();
 
   // Multi-Model Selection State
   const [availableModels, setAvailableModels] = useState([
@@ -344,7 +351,7 @@ export default function AiCopilot() {
         </h3>
         
         {/* Create new chat input */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexShrink: 0 }}>
           <input 
             type="text" 
             className="form-input" 
@@ -353,65 +360,80 @@ export default function AiCopilot() {
             onChange={(e) => setNewChatTitle(e.target.value)}
             style={{ padding: '8px', fontSize: '13px' }}
           />
-          <button onClick={handleCreateConversation} className="btn btn-primary" style={{ padding: '8px 12px' }}>
+          <button onClick={handleCreateConversation} className="btn btn-primary" style={{ padding: '8px 12px' }} title="New Session">
             <Plus size={16} />
           </button>
         </div>
 
+        {/* Filter sessions input */}
+        <div style={{ position: 'relative', marginBottom: '12px', flexShrink: 0 }}>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Filter sessions..."
+            value={sessionSearch}
+            onChange={(e) => setSessionSearch(e.target.value)}
+            style={{ padding: '6px 10px 6px 28px', fontSize: '12px', width: '100%' }}
+          />
+          <Search size={13} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+        </div>
+
         {/* Chats lists */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '4px' }}>
           {isLoadingChats ? (
             <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading sessions...</p>
           ) : conversations.length === 0 ? (
             <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>No active audit sessions. Click '+' to start.</p>
           ) : (
-            conversations.map((conv) => (
-              <div 
-                key={conv.id}
-                onClick={() => selectConversation(conv.id)}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  background: activeConvId === conv.id ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                  border: activeConvId === conv.id ? '1px solid var(--color-primary)' : '1px solid transparent',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-fast)'
-                }}
-                className="chat-session-item"
-              >
-                <span style={{ 
-                  fontSize: '13px', 
-                  fontWeight: activeConvId === conv.id ? 600 : 400,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  maxWidth: '170px'
-                }} title={conv.title}>
-                  {conv.title}
-                </span>
-                <button 
-                  onClick={(e) => handleDeleteConversation(conv.id, e)}
-                  title="Delete Audit Session"
+            conversations
+              .filter(c => c.title.toLowerCase().includes(sessionSearch.toLowerCase()))
+              .map((conv) => (
+                <div 
+                  key={conv.id}
+                  onClick={() => selectConversation(conv.id)}
                   style={{
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    color: '#ef4444',
-                    borderRadius: '4px',
-                    padding: '4px 6px',
-                    cursor: 'pointer',
                     display: 'flex',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    background: activeConvId === conv.id ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                    border: activeConvId === conv.id ? '1px solid var(--color-primary)' : '1px solid transparent',
+                    cursor: 'pointer',
                     transition: 'var(--transition-fast)'
                   }}
+                  className="chat-session-item"
                 >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))
+                  <span style={{ 
+                    fontSize: '13px', 
+                    fontWeight: activeConvId === conv.id ? 600 : 400,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '160px'
+                  }} title={conv.title}>
+                    {conv.title}
+                  </span>
+                  <button 
+                    onClick={(e) => handleDeleteConversation(conv.id, e)}
+                    title="Delete Audit Session"
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#ef4444',
+                      borderRadius: '4px',
+                      padding: '4px 6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'var(--transition-fast)'
+                    }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))
           )}
         </div>
       </div>

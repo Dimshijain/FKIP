@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, getUserRole } from '../services/api';
+import { useToast } from '../components/ToastContext';
+import EmptyState from '../components/EmptyState';
 import { 
   Lightbulb, 
   Layers, 
@@ -10,7 +12,11 @@ import {
   Trash2, 
   Loader2, 
   AlertTriangle,
-  FileText
+  FileText,
+  Filter,
+  Plus,
+  Zap,
+  DollarSign
 } from 'lucide-react';
 
 export default function InnovationPipeline() {
@@ -20,10 +26,9 @@ export default function InnovationPipeline() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
-  
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const userRole = getUserRole() || 'CONSUMER';
+  const toast = useToast();
 
   const loadInitialData = async () => {
     try {

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../components/ToastContext';
+import { SkeletonCard } from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 import { 
   BarChart3, 
   Search, 
@@ -8,13 +11,17 @@ import {
   FileText, 
   RefreshCw,
   HelpCircle,
-  Database
+  Database,
+  Calendar,
+  Zap,
+  Activity
 } from 'lucide-react';
 
 export default function AnalyticsReports() {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [dateRange, setDateRange] = useState('7D');
+  const toast = useToast();
 
   useEffect(() => {
     fetchAnalytics();

@@ -14,6 +14,7 @@ import KnowledgeGraph from './pages/KnowledgeGraph';
 import DocGenerator from './pages/DocGenerator';
 import SqlWriter from './pages/SqlWriter';
 import { api, getAuthToken } from './services/api';
+import { ToastProvider } from './components/ToastContext';
 import { Cpu, AlertTriangle } from 'lucide-react';
 
 // Shared Placeholder Page (for non-implemented Phase 3 scopes if any)
@@ -86,48 +87,50 @@ export default function App() {
   }
 
   return (
-    <Router>
-      <Routes>
-        {/* Unauthenticated portal */}
-        <Route 
-          path="/login" 
-          element={user ? <Navigate to="/" replace /> : <Login setUser={setUser} />} 
-        />
+    <ToastProvider>
+      <Router>
+        <Routes>
+          {/* Unauthenticated portal */}
+          <Route 
+            path="/login" 
+            element={user ? <Navigate to="/" replace /> : <Login setUser={setUser} />} 
+          />
 
-        {/* Authenticated workspace wrapper */}
-        <Route
-          path="/*"
-          element={
-            user ? (
-              <div className="app-container">
-                <Sidebar user={user} setUser={setUser} />
-                <main className="main-content">
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/copilot" element={<AiCopilot />} />
-                    <Route path="/search" element={<KnowledgeSearch />} />
-                    <Route path="/sql-writer" element={<SqlWriter />} />
-                    <Route path="/oracle" element={<OracleIntelligence />} />
-                    <Route path="/dna" element={<DnaCatalog />} />
-                    <Route path="/opportunities" element={<InnovationPipeline />} />
-                    <Route path="/knowledge-graph" element={<KnowledgeGraph />} />
-                    <Route path="/docs-generator" element={<DocGenerator />} />
-                    <Route path="/reports" element={<AnalyticsReports />} />
-                    
-                    {user.role === 'ADMIN' && (
-                      <Route path="/admin" element={<AdminDashboard />} />
-                    )}
-                    
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </main>
-              </div>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-      </Routes>
-    </Router>
+          {/* Authenticated workspace wrapper */}
+          <Route
+            path="/*"
+            element={
+              user ? (
+                <div className="app-container">
+                  <Sidebar user={user} setUser={setUser} />
+                  <main className="main-content">
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/copilot" element={<AiCopilot />} />
+                      <Route path="/search" element={<KnowledgeSearch />} />
+                      <Route path="/sql-writer" element={<SqlWriter />} />
+                      <Route path="/oracle" element={<OracleIntelligence />} />
+                      <Route path="/dna" element={<DnaCatalog />} />
+                      <Route path="/opportunities" element={<InnovationPipeline />} />
+                      <Route path="/knowledge-graph" element={<KnowledgeGraph />} />
+                      <Route path="/docs-generator" element={<DocGenerator />} />
+                      <Route path="/reports" element={<AnalyticsReports />} />
+                      
+                      {user.role === 'ADMIN' && (
+                        <Route path="/admin" element={<AdminDashboard />} />
+                      )}
+                      
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </main>
+                </div>
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+        </Routes>
+      </Router>
+    </ToastProvider>
   );
 }

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../components/ToastContext';
+import SkeletonBox from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 import { 
   Network, 
   Layers, 
@@ -12,7 +15,10 @@ import {
   Info,
   Loader2,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Search,
+  Zap,
+  Eye
 } from 'lucide-react';
 
 export default function KnowledgeGraph() {
@@ -20,8 +26,9 @@ export default function KnowledgeGraph() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState(null);
   const [hoveredNode, setHoveredNode] = useState(null);
-  const [filterType, setFilterType] = useState('all'); // 'all', 'document', 'oracle_object', 'dna_feature', 'opportunity'
-  const [error, setError] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const toast = useToast();
 
   const loadGraphData = async () => {
     try {

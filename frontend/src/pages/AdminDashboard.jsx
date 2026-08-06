@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api, getUserRole } from '../services/api';
+import { useToast } from '../components/ToastContext';
+import { SkeletonCard } from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 import { 
   ShieldCheck, 
   Users, 
@@ -8,15 +11,18 @@ import {
   Cpu, 
   Activity, 
   RefreshCw,
-  HardDrive
+  HardDrive,
+  UserCheck,
+  Search
 } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [usersList, setUsersList] = useState([]);
   const [stats, setStats] = useState(null);
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [searchUser, setSearchUser] = useState('');
+  const toast = useToast();
 
   useEffect(() => {
     fetchAdminData();
@@ -24,14 +30,13 @@ export default function AdminDashboard() {
 
   const fetchAdminData = async () => {
     setIsLoading(true);
-    setError('');
     try {
       const usersData = await api.get('/admin/users');
       const statsData = await api.get('/admin/monitoring');
       setUsersList(usersData);
       setStats(statsData);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to fetch admin dashboard metadata.');
+      toast.error(err.response?.data?.detail || 'Failed to fetch admin monitoring data.');
     } finally {
       setIsLoading(false);
     }
@@ -41,9 +46,10 @@ export default function AdminDashboard() {
     setIsUpdating(true);
     try {
       await api.put(`/admin/users/${userId}/role`, { role: newRole });
+      toast.success(`User role updated to ${newRole}.`);
       fetchAdminData();
     } catch (err) {
-      alert(err.response?.data?.detail || "Failed to update user role.");
+      toast.error(err.response?.data?.detail || "Failed to update user role.");
     } finally {
       setIsUpdating(false);
     }

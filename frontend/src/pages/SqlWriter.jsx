@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../components/ToastContext';
+import { SkeletonCard } from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 import { 
   Terminal, 
   Play, 
@@ -18,7 +21,8 @@ import {
   ChevronDown,
   Layers,
   Wand2,
-  Cpu
+  Cpu,
+  Download
 } from 'lucide-react';
 
 export default function SqlWriter() {
@@ -31,15 +35,15 @@ export default function SqlWriter() {
   
   const [schemaTree, setSchemaTree] = useState([]);
   const [historyList, setHistoryList] = useState([]);
-  const [activeTab, setActiveTab] = useState('schema'); // 'schema' or 'history'
+  const [activeTab, setActiveTab] = useState('schema');
   
   const [searchSchema, setSearchSchema] = useState('');
   const [copied, setCopied] = useState(false);
   const [expandedTables, setExpandedTables] = useState({});
   const [error, setError] = useState('');
   const [explanation, setExplanation] = useState('');
+  const toast = useToast();
 
-  // Load Schema Tree and History on mount
   useEffect(() => {
     loadSchemaTree();
     loadHistory();
@@ -50,7 +54,7 @@ export default function SqlWriter() {
       const data = await api.get('/sql/schema');
       setSchemaTree(data.tables || []);
     } catch (err) {
-      console.error('Failed to load database schema tree:', err);
+      console.error('Failed to load schema tree:', err);
     }
   };
 
@@ -59,13 +63,13 @@ export default function SqlWriter() {
       const data = await api.get('/sql/history');
       setHistoryList(data || []);
     } catch (err) {
-      console.error('Failed to load SQL generation history:', err);
+      console.error('Failed to load SQL history:', err);
     }
   };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      setError('Please provide a natural language description for the query.');
+      toast.warning('Please enter a natural language prompt.');
       return;
     }
 
@@ -81,10 +85,11 @@ export default function SqlWriter() {
 
       setGeneratedResult(res);
       setExplanation(res.explanation || '');
-      loadHistory(); // refresh history
+      toast.success(`Generated ${dialect} SQL query successfully.`);
+      loadHistory();
     } catch (err) {
       console.error(err);
-      setError(err.message || 'SQL generation failed. Please check LLM server.');
+      toast.error(err.message || 'SQL generation failed.');
     } finally {
       setIsGenerating(false);
     }
@@ -99,8 +104,9 @@ export default function SqlWriter() {
         dialect: dialect
       });
       setGeneratedResult(prev => ({ ...prev, generated_sql: res.formatted_sql }));
+      toast.success('SQL query formatted cleanly.');
     } catch (err) {
-      console.error('Format failed:', err);
+      toast.error('Format execution failed.');
     } finally {
       setIsFormatting(false);
     }
@@ -115,8 +121,9 @@ export default function SqlWriter() {
         dialect: dialect
       });
       setExplanation(res.explanation);
+      toast.info('Execution plan & logic breakdown updated.');
     } catch (err) {
-      console.error('Explain failed:', err);
+      toast.error('Explain plan failed.');
     } finally {
       setIsExplaining(false);
     }
@@ -126,7 +133,20 @@ export default function SqlWriter() {
     if (!generatedResult?.generated_sql) return;
     navigator.clipboard.writeText(generatedResult.generated_sql);
     setCopied(true);
+    toast.success('SQL query copied to clipboard.');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadSql = () => {
+    if (!generatedResult?.generated_sql) return;
+    const element = document.createElement('a');
+    const file = new Blob([generatedResult.generated_sql], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = `fkip_query_${dialect.toLowerCase()}_${Date.now()}.sql`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+    toast.success('Downloaded .sql file.');
   };
 
   const toggleTableExpand = (tableName) => {
@@ -524,6 +544,16 @@ export default function SqlWriter() {
                   >
                     {copied ? <Check size={13} /> : <Copy size={13} />}
                     <span>{copied ? 'Copied!' : 'Copy SQL'}</span>
+                  </button>
+
+                  <button
+                    onClick={handleDownloadSql}
+                    className="btn btn-secondary"
+                    style={{ padding: '6px 12px', fontSize: '12px', gap: '6px' }}
+                    title="Download .sql Script"
+                  >
+                    <Download size={13} />
+                    <span>Download .sql</span>
                   </button>
                 </div>
               </div>
