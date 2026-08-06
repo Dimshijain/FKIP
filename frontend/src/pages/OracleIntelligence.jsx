@@ -66,6 +66,8 @@ export default function OracleIntelligence() {
       setDependencies(depData);
     } catch (err) {
       console.error("Failed to load Oracle metadata", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 

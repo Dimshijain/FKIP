@@ -27,6 +27,7 @@ export default function InnovationPipeline() {
   const [isSaving, setIsSaving] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [error, setError] = useState('');
   const userRole = getUserRole() || 'CONSUMER';
   const toast = useToast();
 

@@ -109,7 +109,10 @@ export default function App() {
                           <Route path="/dna" element={<DnaCatalog />} />
                           <Route path="/opportunities" element={<InnovationPipeline />} />
                           <Route path="/knowledge-graph" element={<KnowledgeGraph />} />
+                          <Route path="/knowledge_graph" element={<Navigate to="/knowledge-graph" replace />} />
                           <Route path="/docs-generator" element={<DocGenerator />} />
+                          <Route path="/doc-generator" element={<Navigate to="/docs-generator" replace />} />
+                          <Route path="/docs" element={<Navigate to="/docs-generator" replace />} />
                           <Route path="/reports" element={<AnalyticsReports />} />
                           
                           {user.role === 'ADMIN' && (

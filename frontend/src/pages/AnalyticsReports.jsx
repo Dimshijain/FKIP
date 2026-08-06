@@ -20,6 +20,7 @@ import {
 export default function AnalyticsReports() {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [dateRange, setDateRange] = useState('7D');
   const toast = useToast();
 

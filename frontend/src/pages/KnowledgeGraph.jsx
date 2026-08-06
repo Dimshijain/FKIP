@@ -24,6 +24,7 @@ import {
 export default function KnowledgeGraph() {
   const [graph, setGraph] = useState({ nodes: [], edges: [] });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [selectedNode, setSelectedNode] = useState(null);
   const [hoveredNode, setHoveredNode] = useState(null);
   const [filterType, setFilterType] = useState('all');
