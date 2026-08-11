@@ -8,7 +8,7 @@ import bcrypt
 
 from app.db.session import get_db
 from app.db.models import User, UserRole
-from app.db.schemas import UserCreate, UserResponse, Token, TokenData
+from app.db.schemas import UserCreate, UserLogin, UserResponse, Token, TokenData
 from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -85,7 +85,7 @@ def register_user(user_in: UserCreate, db: Session = Depends(get_db)):
     return db_user
 
 @router.post("/login", response_model=Token)
-def login_user(user_in: UserCreate, db: Session = Depends(get_db)):
+def login_user(user_in: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_in.email).first()
     if not user or not verify_password(user_in.password, user.password_hash):
         raise HTTPException(

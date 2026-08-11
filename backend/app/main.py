@@ -67,14 +67,18 @@ def startup_event():
     
     db = SessionLocal()
     try:
-        # 1. Seed Users if empty
-        if not db.query(User).first():
-            logger.info("Seeding default platform user accounts...")
-            admin_user = User(email="admin@finxsystems.com", password_hash=get_password_hash("password123"), role=UserRole.ADMIN)
-            creator_user = User(email="creator@finxsystems.com", password_hash=get_password_hash("password123"), role=UserRole.CREATOR)
-            consumer_user = User(email="user@finxsystems.com", password_hash=get_password_hash("password123"), role=UserRole.CONSUMER)
-            db.add_all([admin_user, creator_user, consumer_user])
-            db.commit()
+        # 1. Seed Demo Users if missing
+        demo_accounts = [
+            ("admin@finxsystems.com", UserRole.ADMIN),
+            ("creator@finxsystems.com", UserRole.CREATOR),
+            ("user@finxsystems.com", UserRole.CONSUMER),
+        ]
+        for email, role in demo_accounts:
+            existing = db.query(User).filter(User.email == email).first()
+            if not existing:
+                logger.info(f"Seeding demo user account: {email}")
+                db.add(User(email=email, password_hash=get_password_hash("password123"), role=role))
+        db.commit()
 
         admin_user = db.query(User).filter(User.email == "admin@finxsystems.com").first()
         creator_user = db.query(User).filter(User.email == "creator@finxsystems.com").first() or admin_user

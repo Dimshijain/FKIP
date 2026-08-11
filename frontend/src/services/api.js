@@ -47,7 +47,7 @@ const request = async (method, path, body = null, isMultipart = false) => {
 
   const response = await fetch(`${API_BASE}${path}`, options);
 
-  if (response.status === 401) {
+  if (response.status === 401 && path !== '/auth/login') {
     // Session expired, clear tokens & cache
     setAuthToken(null);
     setUserRole(null);
@@ -59,7 +59,17 @@ const request = async (method, path, body = null, isMultipart = false) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || 'An error occurred during network request');
+    let errorMessage = 'An error occurred during network request';
+    if (typeof errorData.detail === 'string') {
+      errorMessage = errorData.detail;
+    } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+      errorMessage = errorData.detail.map(d => d.msg || d.message || JSON.stringify(d)).join(', ');
+    } else if (errorData.message) {
+      errorMessage = errorData.message;
+    } else if (response.statusText) {
+      errorMessage = `${response.status}: ${response.statusText}`;
+    }
+    throw new Error(errorMessage);
   }
 
   const data = await response.json();
@@ -79,7 +89,7 @@ export const api = {
   // Auth endpoints
   login: async (email, password) => {
     clearApiCache();
-    const data = await request('POST', '/auth/login', { email, password, role: 'CONSUMER' });
+    const data = await request('POST', '/auth/login', { email, password });
     setAuthToken(data.access_token);
     // Fetch profile to get role
     const profile = await request('GET', '/auth/me');

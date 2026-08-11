@@ -18,7 +18,9 @@ export default function Login({ setUser }) {
     setEmail(demoEmail);
     setPassword('password123');
     setRole(demoRole);
+    setIsRegister(false);
     setError('');
+    setSuccess('');
   };
 
   const handleSubmit = async (e) => {
