@@ -98,18 +98,18 @@ export default function Dashboard() {
   const paginatedDocs = documents.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <div style={{ paddingBottom: '32px' }}>
-      {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h1 style={{ fontSize: '32px', marginBottom: '4px' }}>Executive Command Center</h1>
+    <div>
+      {/* Standardized Page Header */}
+      <div className="page-header">
+        <div className="page-title-group">
+          <div className="page-title-row">
+            <h1 className="page-title">Executive Command Center</h1>
             <span className="badge badge-primary">Enterprise v3.2</span>
           </div>
-          <p style={{ color: 'var(--text-muted)' }}>Real-time telemetry, knowledge registry growth, and system architecture status.</p>
+          <p className="page-subtitle">Real-time telemetry, knowledge registry growth, and system architecture status.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={() => loadDashboardData(true)} className="btn btn-secondary" style={{ gap: '8px' }}>
+        <div className="page-actions">
+          <button onClick={() => loadDashboardData(true)} className="btn btn-secondary">
             <RefreshCw size={16} />
             <span>Refresh Telemetry</span>
           </button>
@@ -118,65 +118,65 @@ export default function Dashboard() {
 
       {/* Metrics Row */}
       {isLoading ? (
-        <div style={{ marginBottom: '32px' }}>
+        <div style={{ marginBottom: 'var(--space-8)' }}>
           <SkeletonCard count={4} />
         </div>
       ) : (
-        <div className="stats-grid" style={{ marginBottom: '32px' }}>
+        <div className="stats-grid">
           {/* Knowledge Growth Card */}
           <div className="card stat-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="stat-card-header">
               <span className="stat-label">Knowledge Registry</span>
-              <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--color-primary)' }}>
+              <div className="stat-icon-wrapper" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--color-primary)' }}>
                 <FileText size={20} />
               </div>
             </div>
             <div className="stat-value">{totalDocs}</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="badge badge-success" style={{ padding: '2px 6px' }}>+12%</span>
+            <div className="stat-meta">
+              <span className="badge badge-success">+12%</span>
               <span>{processedDocs} Indexed • {execData?.knowledge_growth?.chunks_count || 0} Chunks</span>
             </div>
           </div>
 
           {/* AI Copilot Usage Card */}
           <div className="card stat-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="stat-card-header">
               <span className="stat-label">AI Copilot Audits</span>
-              <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.1)', color: 'var(--color-accent)' }}>
+              <div className="stat-icon-wrapper" style={{ background: 'rgba(168, 85, 247, 0.1)', color: 'var(--color-accent)' }}>
                 <Brain size={20} />
               </div>
             </div>
             <div className="stat-value">{aiQueries}</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="badge badge-secondary" style={{ padding: '2px 6px' }}>{avgLatency}ms</span>
+            <div className="stat-meta">
+              <span className="badge badge-secondary">{avgLatency}ms</span>
               <span>Rating: {avgRating.toFixed(1)}★</span>
             </div>
           </div>
 
           {/* Opportunities Metrics Card */}
           <div className="card stat-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="stat-card-header">
               <span className="stat-label">Opportunities Backlog</span>
-              <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(6, 182, 212, 0.1)', color: 'var(--color-secondary)' }}>
+              <div className="stat-icon-wrapper" style={{ background: 'rgba(6, 182, 212, 0.1)', color: 'var(--color-secondary)' }}>
                 <TrendingUp size={20} />
               </div>
             </div>
             <div className="stat-value">{oppsCount}</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="badge badge-info" style={{ padding: '2px 6px' }}>Active</span>
+            <div className="stat-meta">
+              <span className="badge badge-info">Active</span>
               <span>Gaps: {Object.values(execData?.innovation?.status_distribution || {}).reduce((a,b) => a+b, 0)} Items</span>
             </div>
           </div>
 
           {/* System Health Card */}
           <div className="card stat-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="stat-card-header">
               <span className="stat-label">Infrastructure Pulse</span>
-              <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-completed)' }}>
+              <div className="stat-icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-completed)' }}>
                 <Activity size={20} />
               </div>
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', gap: '8px', flexDirection: 'column', marginTop: '12px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', gap: '8px', flexDirection: 'column', marginTop: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>PG & Redis:</span>
                 <span className="badge badge-success">ONLINE</span>
@@ -190,35 +190,17 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Tabs Switcher */}
-      <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid var(--border-color)', marginBottom: '32px' }}>
+      {/* Standardized Tabs Switcher */}
+      <div className="tab-nav">
         <button 
           onClick={() => setActiveTab('overview')} 
-          style={{
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'overview' ? '2px solid var(--color-primary)' : '2px solid transparent',
-            color: activeTab === 'overview' ? 'var(--text-main)' : 'var(--text-muted)',
-            padding: '12px 24px',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: '15px'
-          }}
+          className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
         >
           Overview Insights
         </button>
         <button 
           onClick={() => setActiveTab('registry')} 
-          style={{
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'registry' ? '2px solid var(--color-primary)' : '2px solid transparent',
-            color: activeTab === 'registry' ? 'var(--text-main)' : 'var(--text-muted)',
-            padding: '12px 24px',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: '15px'
-          }}
+          className={`tab-btn ${activeTab === 'registry' ? 'active' : ''}`}
         >
           Knowledge Ingestion Registry
         </button>

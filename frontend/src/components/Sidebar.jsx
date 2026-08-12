@@ -68,7 +68,7 @@ export default function Sidebar({ isCollapsed }) {
       <nav className="sidebar-menu">
         {menuSections.map((section, idx) => (
           <div key={idx} className="menu-section">
-            {!isCollapsed && <div className="section-title">{section.title}</div>}
+            {!isCollapsed && <div className="menu-section-title">{section.title}</div>}
             {section.items.map(item => {
               const IconComp = item.icon;
               return (

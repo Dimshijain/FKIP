@@ -177,30 +177,31 @@ export default function KnowledgeGraph() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '32px', marginBottom: '8px' }}>Connected Knowledge Graph</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Visualize relational mappings and explore connections between documentation, database schemas, applications, and innovation milestones.</p>
+      {/* Standardized Page Header */}
+      <div className="page-header">
+        <div className="page-title-group">
+          <div className="page-title-row">
+            <h1 className="page-title">
+              <Network size={28} className="page-title-icon" />
+              <span>Connected Knowledge Graph</span>
+            </h1>
+            <span className="badge badge-primary">Interactive Topology</span>
+          </div>
+          <p className="page-subtitle">
+            Visualize relational mappings and explore connections between documentation, database schemas, applications, and innovation milestones.
+          </p>
         </div>
-        <button onClick={loadGraphData} className="btn btn-secondary" style={{ gap: '8px' }}>
-          <RefreshCw size={16} />
-          <span>Reload Graph</span>
-        </button>
+        <div className="page-actions">
+          <button onClick={loadGraphData} className="btn btn-secondary">
+            <RefreshCw size={16} />
+            <span>Reload Graph</span>
+          </button>
+        </div>
       </div>
 
+      {/* Standardized Alert */}
       {error && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px', 
-          background: 'rgba(239, 68, 68, 0.1)', 
-          color: 'var(--status-failed)', 
-          padding: '16px', 
-          borderRadius: '8px',
-          marginBottom: '24px',
-          fontSize: '14px',
-          border: '1px solid rgba(239, 68, 68, 0.2)'
-        }}>
+        <div className="alert-banner alert-banner-error">
           <AlertCircle size={18} />
           <span>{error}</span>
         </div>

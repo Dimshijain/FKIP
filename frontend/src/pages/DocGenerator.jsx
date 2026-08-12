@@ -484,42 +484,32 @@ export default function DocGenerator() {
 
   return (
     <div>
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '32px', marginBottom: '8px' }}>AI Documentation Generator</h1>
-        <p style={{ color: 'var(--text-muted)' }}>Generate context-aware software specifications, business requirements, and manuals drafted using local LLM algorithms.</p>
+      {/* Standardized Page Header */}
+      <div className="page-header">
+        <div className="page-title-group">
+          <div className="page-title-row">
+            <h1 className="page-title">
+              <FileText size={28} className="page-title-icon" />
+              <span>AI Documentation Generator</span>
+            </h1>
+            <span className="badge badge-primary">Multi-Format Export</span>
+          </div>
+          <p className="page-subtitle">
+            Generate context-aware software specifications, business requirements, and manuals drafted using local LLM algorithms.
+          </p>
+        </div>
       </div>
 
+      {/* Standardized Alerts */}
       {error && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px', 
-          background: 'rgba(239, 68, 68, 0.1)', 
-          color: 'var(--status-failed)', 
-          padding: '16px', 
-          borderRadius: '8px',
-          marginBottom: '32px',
-          fontSize: '14px',
-          border: '1px solid rgba(239, 68, 68, 0.2)'
-        }}>
-          <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 2s linear infinite', marginRight: '6px' }} />
+        <div className="alert-banner alert-banner-error">
+          <Loader2 size={18} className="animate-spin" />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px', 
-          background: 'rgba(16, 185, 129, 0.1)', 
-          color: 'var(--status-completed)', 
-          padding: '16px', 
-          borderRadius: '8px',
-          marginBottom: '32px',
-          fontSize: '14px',
-          border: '1px solid rgba(16, 185, 129, 0.2)'
-        }}>
+        <div className="alert-banner alert-banner-success">
           <Check size={18} />
           <span>{success}</span>
         </div>

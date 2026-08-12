@@ -103,76 +103,98 @@ export default function AnalyticsReports() {
   };
 
   return (
-    <div className="workspace-container" style={{ padding: '24px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '28px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <BarChart3 size={32} style={{ color: 'var(--color-primary)' }} />
-            <span>Reports & Analytics</span>
-          </h1>
-          <p style={{ color: 'var(--text-muted)' }}>
+    <div>
+      {/* Standardized Page Header */}
+      <div className="page-header">
+        <div className="page-title-group">
+          <div className="page-title-row">
+            <h1 className="page-title">
+              <BarChart3 size={28} className="page-title-icon" />
+              <span>Reports & Analytics</span>
+            </h1>
+            <span className="badge badge-primary">Telemetry & Trends</span>
+          </div>
+          <p className="page-subtitle">
             Audit search latency frequencies, RAG hallucination trends, and file system size metrics.
           </p>
         </div>
-        <button onClick={fetchAnalytics} className="btn btn-secondary" style={{ gap: '8px' }}>
-          <RefreshCw size={16} />
-          <span>Refresh Analytics</span>
-        </button>
+        <div className="page-actions">
+          <button onClick={fetchAnalytics} className="btn btn-secondary">
+            <RefreshCw size={16} />
+            <span>Refresh Analytics</span>
+          </button>
+        </div>
       </div>
 
+      {/* Standardized Alert */}
       {error && (
-        <div style={{ padding: '16px', background: 'rgba(239,68,68,0.1)', color: 'var(--status-failed)', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.2)', marginBottom: '24px' }}>
+        <div className="alert-banner alert-banner-error">
           {error}
         </div>
       )}
 
       {data && (
         <div>
-          {/* Top row cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+          {/* Standardized Top Row KPI Stat Cards */}
+          <div className="stats-grid">
             
             {/* Card 1: Total Queries */}
-            <div className="card" style={{ padding: '20px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <div style={{ p: '12px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '8px', display: 'flex', padding: '12px' }}>
-                <Search size={24} />
+            <div className="card stat-card">
+              <div className="stat-card-header">
+                <span className="stat-label">Total Queries</span>
+                <div className="stat-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
+                  <Search size={20} />
+                </div>
               </div>
-              <div>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Queries</span>
-                <h3 style={{ fontSize: '24px', color: 'var(--text-main)', marginTop: '4px' }}>{data.search.total_queries}</h3>
+              <div className="stat-value">{data.search.total_queries}</div>
+              <div className="stat-meta">
+                <span className="badge badge-info">Audited</span>
+                <span>Semantic & Hybrid Searches</span>
               </div>
             </div>
 
             {/* Card 2: Average Latency */}
-            <div className="card" style={{ padding: '20px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <div style={{ p: '12px', background: 'rgba(234, 179, 8, 0.1)', color: 'var(--status-pending)', borderRadius: '8px', display: 'flex', padding: '12px' }}>
-                <Clock size={24} />
+            <div className="card stat-card">
+              <div className="stat-card-header">
+                <span className="stat-label">Avg Latency</span>
+                <div className="stat-icon-wrapper" style={{ background: 'rgba(234, 179, 8, 0.1)', color: 'var(--status-pending)' }}>
+                  <Clock size={20} />
+                </div>
               </div>
-              <div>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Avg Latency</span>
-                <h3 style={{ fontSize: '24px', color: 'var(--text-main)', marginTop: '4px' }}>{data.search.average_latency_ms} <span style={{ fontSize: '14px', fontWeight: 'normal', color: 'var(--text-muted)' }}>ms</span></h3>
+              <div className="stat-value">{data.search.average_latency_ms} <span style={{ fontSize: '16px', fontWeight: 'normal', color: 'var(--text-muted)' }}>ms</span></div>
+              <div className="stat-meta">
+                <span className="badge badge-secondary">Vector RAG</span>
+                <span>Response speed</span>
               </div>
             </div>
 
             {/* Card 3: Avg Rating */}
-            <div className="card" style={{ padding: '20px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <div style={{ p: '12px', background: 'rgba(34, 197, 94, 0.1)', color: 'var(--status-completed)', borderRadius: '8px', display: 'flex', padding: '12px' }}>
-                <ThumbsUp size={24} />
+            <div className="card stat-card">
+              <div className="stat-card-header">
+                <span className="stat-label">Avg Rating</span>
+                <div className="stat-icon-wrapper" style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--status-completed)' }}>
+                  <ThumbsUp size={20} />
+                </div>
               </div>
-              <div>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Avg Rating</span>
-                <h3 style={{ fontSize: '24px', color: 'var(--text-main)', marginTop: '4px' }}>{data.search.average_rating.toFixed(1)} <span style={{ fontSize: '14px', fontWeight: 'normal', color: 'var(--text-muted)' }}>/ 5.0</span></h3>
+              <div className="stat-value">{data.search.average_rating.toFixed(1)} <span style={{ fontSize: '16px', fontWeight: 'normal', color: 'var(--text-muted)' }}>/ 5.0</span></div>
+              <div className="stat-meta">
+                <span className="badge badge-success">High Quality</span>
+                <span>User satisfaction score</span>
               </div>
             </div>
 
             {/* Card 4: Active Users */}
-            <div className="card" style={{ padding: '20px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <div style={{ p: '12px', background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7', borderRadius: '8px', display: 'flex', padding: '12px' }}>
-                <Clock size={24} />
+            <div className="card stat-card">
+              <div className="stat-card-header">
+                <span className="stat-label">Active Users</span>
+                <div className="stat-icon-wrapper" style={{ background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>
+                  <Clock size={20} />
+                </div>
               </div>
-              <div>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active Users</span>
-                <h3 style={{ fontSize: '24px', color: 'var(--text-main)', marginTop: '4px' }}>{data.active_users_count} <span style={{ fontSize: '14px', fontWeight: 'normal', color: 'var(--text-muted)' }}>accounts</span></h3>
+              <div className="stat-value">{data.active_users_count}</div>
+              <div className="stat-meta">
+                <span className="badge badge-primary">Accounts</span>
+                <span>Platform operators</span>
               </div>
             </div>
 

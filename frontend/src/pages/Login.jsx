@@ -139,9 +139,9 @@ export default function Login({ setUser }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-main)' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div className="form-group">
+            <label className="form-label">
               Email Address
             </label>
             <input 
@@ -154,8 +154,8 @@ export default function Login({ setUser }) {
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-main)' }}>
+          <div className="form-group">
+            <label className="form-label">
               Password
             </label>
             <input 
@@ -169,14 +169,14 @@ export default function Login({ setUser }) {
           </div>
 
           {isRegister && (
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-main)' }}>
+            <div className="form-group">
+              <label className="form-label">
                 Account Role
               </label>
               <select 
                 value={role} 
                 onChange={(e) => setRole(e.target.value)}
-                className="form-input"
+                className="form-select"
               >
                 <option value="CONSUMER">Consumer / Reader</option>
                 <option value="CREATOR">Creator / Analyst</option>
@@ -189,7 +189,7 @@ export default function Login({ setUser }) {
             type="submit" 
             disabled={isLoading}
             className="btn btn-primary"
-            style={{ width: '100%', padding: '12px', marginTop: '6px', gap: '8px', fontSize: '15px' }}
+            style={{ width: '100%', height: '44px', marginTop: 'var(--space-2)', fontSize: '15px' }}
           >
             <span>{isLoading ? 'Authenticating...' : isRegister ? 'Create Platform Account' : 'Sign In to Workspace'}</span>
             {!isLoading && <ArrowRight size={16} />}

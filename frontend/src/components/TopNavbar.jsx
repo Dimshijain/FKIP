@@ -149,6 +149,15 @@ export default function TopNavbar({ user, setUser, isSidebarCollapsed, toggleSid
           <span className="health-text">Systems Operational</span>
         </div>
 
+        {/* Dark/Light Theme Toggle */}
+        <button 
+          onClick={toggleTheme}
+          className="btn-icon"
+          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+
         {/* Notifications Dropdown */}
         <div style={{ position: 'relative' }} ref={notifRef}>
           <button 

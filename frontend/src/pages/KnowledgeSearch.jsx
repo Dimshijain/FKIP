@@ -53,12 +53,15 @@ export default function KnowledgeSearch() {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <h1 style={{ fontSize: '32px', marginBottom: '4px' }}>Knowledge Search Explorer</h1>
-          <span className="badge badge-secondary">Hybrid Vector RAG</span>
+      {/* Standardized Page Header */}
+      <div className="page-header">
+        <div className="page-title-group">
+          <div className="page-title-row">
+            <h1 className="page-title">Knowledge Search Explorer</h1>
+            <span className="badge badge-secondary">Hybrid Vector RAG</span>
+          </div>
+          <p className="page-subtitle">Perform hybrid semantic search across indexed architecture specifications and converse with the RAG assistant.</p>
         </div>
-        <p style={{ color: 'var(--text-muted)' }}>Perform hybrid semantic search across indexed architecture specifications and converse with the RAG assistant.</p>
       </div>
 
       <div className="search-layout" style={{ flex: 1, minHeight: 0 }}>

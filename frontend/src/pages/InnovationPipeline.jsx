@@ -140,42 +140,32 @@ export default function InnovationPipeline() {
 
   return (
     <div>
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '32px', marginBottom: '8px' }}>Product Opportunity Register</h1>
-        <p style={{ color: 'var(--text-muted)' }}>Analyze ingested text logs to discover development gaps, map AI scoring indicators, and prioritize the product innovation backlog.</p>
+      {/* Standardized Page Header */}
+      <div className="page-header">
+        <div className="page-title-group">
+          <div className="page-title-row">
+            <h1 className="page-title">
+              <Lightbulb size={28} className="page-title-icon" />
+              <span>Product Opportunity Register</span>
+            </h1>
+            <span className="badge badge-primary">Innovation Backlog</span>
+          </div>
+          <p className="page-subtitle">
+            Analyze ingested text logs to discover development gaps, map AI scoring indicators, and prioritize the product innovation backlog.
+          </p>
+        </div>
       </div>
 
+      {/* Standardized Alerts */}
       {error && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px', 
-          background: 'rgba(239, 68, 68, 0.1)', 
-          color: 'var(--status-failed)', 
-          padding: '16px', 
-          borderRadius: '8px',
-          marginBottom: '32px',
-          fontSize: '14px',
-          border: '1px solid rgba(239, 68, 68, 0.2)'
-        }}>
+        <div className="alert-banner alert-banner-error">
           <AlertTriangle size={18} />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px', 
-          background: 'rgba(16, 185, 129, 0.1)', 
-          color: 'var(--status-completed)', 
-          padding: '16px', 
-          borderRadius: '8px',
-          marginBottom: '32px',
-          fontSize: '14px',
-          border: '1px solid rgba(16, 185, 129, 0.2)'
-        }}>
+        <div className="alert-banner alert-banner-success">
           <Check size={18} />
           <span>{success}</span>
         </div>

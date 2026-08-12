@@ -168,15 +168,20 @@ export default function SqlWriter() {
 
   return (
     <div>
-      {/* Title Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '32px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Terminal size={32} style={{ color: 'var(--color-primary)' }} />
-          <span>AI-Powered SQL Writer</span>
-        </h1>
-        <p style={{ color: 'var(--text-muted)' }}>
-          Draft, validate, and analyze schema-aware Oracle PL/SQL and PostgreSQL queries with automated read-only safety guardrails.
-        </p>
+      {/* Standardized Page Header */}
+      <div className="page-header">
+        <div className="page-title-group">
+          <div className="page-title-row">
+            <h1 className="page-title">
+              <Terminal size={28} className="page-title-icon" />
+              <span>AI-Powered SQL Writer</span>
+            </h1>
+            <span className="badge badge-primary">Schema-Aware</span>
+          </div>
+          <p className="page-subtitle">
+            Draft, validate, and analyze schema-aware Oracle PL/SQL and PostgreSQL queries with automated read-only safety guardrails.
+          </p>
+        </div>
       </div>
 
       {/* Main Grid: Left Panel (Schema Explorer & History), Right Panel (SQL Studio Editor & Outputs) */}

@@ -92,21 +92,24 @@ export default function DnaCatalog() {
   };
 
   return (
-    <div className="workspace-container" style={{ padding: '24px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '28px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <AppWindow size={32} style={{ color: 'var(--color-primary)' }} />
-            <span>Core Banking Application Catalog</span>
-          </h1>
-          <p style={{ color: 'var(--text-muted)' }}>
+    <div>
+      {/* Standardized Page Header */}
+      <div className="page-header">
+        <div className="page-title-group">
+          <div className="page-title-row">
+            <h1 className="page-title">
+              <AppWindow size={28} className="page-title-icon" />
+              <span>Core Banking Application Catalog</span>
+            </h1>
+            <span className="badge badge-primary">Redundancy Audit</span>
+          </div>
+          <p className="page-subtitle">
             Audit internal features and services. Calculate semantic similarity to uncover duplicate capabilities and platform redundancies.
           </p>
         </div>
         
         {/* Upload Trigger */}
-        <div>
+        <div className="page-actions">
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -118,7 +121,6 @@ export default function DnaCatalog() {
             onClick={() => fileInputRef.current.click()} 
             disabled={isUploading}
             className="btn btn-primary"
-            style={{ gap: '8px' }}
           >
             <Upload size={16} />
             <span>{isUploading ? 'Ingesting specs...' : 'Ingest Application Spec'}</span>
@@ -126,57 +128,31 @@ export default function DnaCatalog() {
         </div>
       </div>
 
-      {/* Alert banner */}
+      {/* Standardized Alert banner */}
       {uploadStatus.msg && (
-        <div style={{
-          padding: '16px',
-          borderRadius: '8px',
-          background: uploadStatus.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-          color: uploadStatus.type === 'success' ? 'var(--status-completed)' : 'var(--status-failed)',
-          border: `1px solid ${uploadStatus.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
-          marginBottom: '24px',
-          fontSize: '14px'
-        }}>
+        <div className={`alert-banner ${uploadStatus.type === 'success' ? 'alert-banner-success' : 'alert-banner-error'}`}>
           {uploadStatus.msg}
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '24px', gap: '24px' }}>
+      {/* Standardized Navigation Tabs */}
+      <div className="tab-nav">
         <button 
           onClick={() => setActiveTab('catalog')}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: activeTab === 'catalog' ? 'var(--color-primary)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'catalog' ? '2px solid var(--color-primary)' : 'none',
-            padding: '12px 4px',
-            cursor: 'pointer',
-            fontWeight: 500,
-            fontSize: '15px'
-          }}
+          className={`tab-btn ${activeTab === 'catalog' ? 'active' : ''}`}
         >
-          Systems catalog ({apps.length})
+          Systems Catalog ({apps.length})
         </button>
         <button 
           onClick={() => setActiveTab('clusters')}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: activeTab === 'clusters' ? 'var(--color-primary)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'clusters' ? '2px solid var(--color-primary)' : 'none',
-            padding: '12px 4px',
-            cursor: 'pointer',
-            fontWeight: 500,
-            fontSize: '15px'
-          }}
+          className={`tab-btn ${activeTab === 'clusters' ? 'active' : ''}`}
         >
-          Capability redundancy grouping
+          Capability Redundancy Grouping
         </button>
       </div>
 
       {/* Dynamic Body */}
-      <div className="card" style={{ padding: '24px' }}>
+      <div className="card">
         {activeTab === 'catalog' && (
           <div>
             {/* Search Filter Bar */}

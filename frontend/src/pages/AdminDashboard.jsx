@@ -19,6 +19,7 @@ import {
 export default function AdminDashboard() {
   const [usersList, setUsersList] = useState([]);
   const [stats, setStats] = useState(null);
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [searchUser, setSearchUser] = useState('');
@@ -30,6 +31,7 @@ export default function AdminDashboard() {
 
   const fetchAdminData = async () => {
     setIsLoading(true);
+    setError('');
     try {
       const [usersData, statsData] = await Promise.all([
         api.get('/admin/users'),
@@ -38,7 +40,9 @@ export default function AdminDashboard() {
       setUsersList(usersData);
       setStats(statsData);
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to fetch admin monitoring data.');
+      const errMsg = err.response?.data?.detail || 'Failed to fetch admin monitoring data.';
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsLoading(false);
     }
@@ -75,134 +79,133 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="workspace-container" style={{ padding: '24px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '28px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <ShieldCheck size={32} style={{ color: 'var(--color-primary)' }} />
-            <span>Admin Console</span>
-          </h1>
-          <p style={{ color: 'var(--text-muted)' }}>
+    <div>
+      {/* Standardized Page Header */}
+      <div className="page-header">
+        <div className="page-title-group">
+          <div className="page-title-row">
+            <h1 className="page-title">
+              <ShieldCheck size={28} className="page-title-icon" />
+              <span>Admin Console</span>
+            </h1>
+            <span className="badge badge-primary">System Governance</span>
+          </div>
+          <p className="page-subtitle">
             Monitor active container engines, inspect resource sizes, and manage enterprise user access settings.
           </p>
         </div>
-        <button onClick={fetchAdminData} className="btn btn-secondary" style={{ gap: '8px' }}>
-          <RefreshCw size={16} />
-          <span>Refresh Data</span>
-        </button>
+        <div className="page-actions">
+          <button onClick={fetchAdminData} className="btn btn-secondary">
+            <RefreshCw size={16} />
+            <span>Refresh Data</span>
+          </button>
+        </div>
       </div>
 
+      {/* Standardized Alert */}
       {error && (
-        <div style={{ padding: '16px', background: 'rgba(239,68,68,0.1)', color: 'var(--status-failed)', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.2)', marginBottom: '24px' }}>
+        <div className="alert-banner alert-banner-error">
           {error}
         </div>
       )}
 
       {/* Monitoring Grid */}
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+        <div className="stats-grid">
           
           {/* Card 1: Postgres */}
-          <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div className="card stat-card">
+            <div className="stat-card-header">
               <div>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Database Engine</span>
+                <span className="stat-label">Database Engine</span>
                 <h3 style={{ color: 'var(--text-main)', marginTop: '4px', fontSize: '20px' }}>PostgreSQL</h3>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '5px',
-                  background: stats.postgres_status.status === 'healthy' ? '#22c55e' : '#ef4444',
-                  boxShadow: stats.postgres_status.status === 'healthy' ? '0 0 8px #22c55e' : '0 0 8px #ef4444'
-                }} className="pulse-dot" />
-                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-main)' }}>{stats.postgres_status.status}</span>
+                <span className="pulse-dot" style={{
+                  background: stats.postgres_status.status === 'healthy' ? 'var(--status-completed)' : 'var(--status-failed)',
+                  boxShadow: stats.postgres_status.status === 'healthy' ? '0 0 8px var(--status-completed)' : '0 0 8px var(--status-failed)'
+                }} />
+                <span className="badge badge-success">{stats.postgres_status.status}</span>
               </div>
             </div>
-            <div style={{ marginTop: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
+            <div style={{ marginTop: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span>DB size:</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{formatBytes(stats.db_size_bytes)}</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{formatBytes(stats.db_size_bytes)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Tables count:</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>10 active tables</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>10 active tables</span>
               </div>
             </div>
           </div>
 
           {/* Card 2: Weaviate */}
-          <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div className="card stat-card">
+            <div className="stat-card-header">
               <div>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Vector Index</span>
+                <span className="stat-label">Vector Store</span>
                 <h3 style={{ color: 'var(--text-main)', marginTop: '4px', fontSize: '20px' }}>Weaviate</h3>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '5px',
-                  background: stats.weaviate_status.status === 'healthy' ? '#22c55e' : '#ef4444',
-                  boxShadow: stats.weaviate_status.status === 'healthy' ? '0 0 8px #22c55e' : '0 0 8px #ef4444'
+                <span className="pulse-dot" style={{
+                  background: stats.weaviate_status.status === 'healthy' ? 'var(--status-completed)' : 'var(--status-failed)',
+                  boxShadow: stats.weaviate_status.status === 'healthy' ? '0 0 8px var(--status-completed)' : '0 0 8px var(--status-failed)'
                 }} />
-                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-main)' }}>{stats.weaviate_status.status}</span>
+                <span className="badge badge-success">{stats.weaviate_status.status}</span>
               </div>
             </div>
-            <div style={{ marginTop: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
+            <div style={{ marginTop: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span>Estimated Index size:</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{formatBytes(stats.weaviate_size_bytes)}</span>
+                <span>Classes count:</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{stats.weaviate_status.classes?.length || 0} schemas</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Collections:</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>DocumentChunk, DnaAppFeature</span>
+                <span>Dimension vector:</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>384 dims (all-MiniLM)</span>
               </div>
             </div>
           </div>
 
           {/* Card 3: Ollama */}
-          <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div className="card stat-card">
+            <div className="stat-card-header">
               <div>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>AI Inference</span>
+                <span className="stat-label">AI Inference</span>
                 <h3 style={{ color: 'var(--text-main)', marginTop: '4px', fontSize: '20px' }}>Ollama</h3>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '5px',
-                  background: stats.ollama_status.status === 'healthy' ? '#22c55e' : '#ef4444',
-                  boxShadow: stats.ollama_status.status === 'healthy' ? '0 0 8px #22c55e' : '0 0 8px #ef4444'
+                <span className="pulse-dot" style={{
+                  background: stats.ollama_status.status === 'healthy' ? 'var(--status-completed)' : 'var(--status-failed)',
+                  boxShadow: stats.ollama_status.status === 'healthy' ? '0 0 8px var(--status-completed)' : '0 0 8px var(--status-failed)'
                 }} />
-                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-main)' }}>{stats.ollama_status.status}</span>
+                <span className="badge badge-success">{stats.ollama_status.status}</span>
               </div>
             </div>
-            <div style={{ marginTop: '20px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+            <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
               {stats.ollama_status.details}
             </div>
           </div>
 
           {/* Card 4: Host Hardware */}
-          <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div className="card stat-card">
+            <div className="stat-card-header">
               <div>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>System Hardware</span>
+                <span className="stat-label">System Hardware</span>
                 <h3 style={{ color: 'var(--text-main)', marginTop: '4px', fontSize: '20px' }}>Resource Usage</h3>
               </div>
-              <Activity size={20} style={{ color: 'var(--color-primary)' }} />
+              <div className="stat-icon-wrapper" style={{ background: 'rgba(124, 58, 237, 0.1)', color: 'var(--color-primary)' }}>
+                <Activity size={20} />
+              </div>
             </div>
-            <div style={{ marginTop: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
+            <div style={{ marginTop: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span>CPU load:</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{stats.cpu_percent}%</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{stats.cpu_percent}%</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Memory load:</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{stats.memory_percent}%</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{stats.memory_percent}%</span>
               </div>
             </div>
           </div>
@@ -213,51 +216,39 @@ export default function AdminDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '24px' }}>
         
         {/* User Roles Management Card */}
-        <div className="card" style={{ padding: '24px' }}>
-          <h3 style={{ color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <Users size={20} style={{ color: 'var(--color-primary)' }} />
-            <span>User access control</span>
-          </h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div className="card">
+          <div className="section-header">
+            <h3 className="section-title">
+              <Users size={20} className="section-title-icon" />
+              <span>User Access Control</span>
+            </h3>
+            <span className="badge badge-secondary">{usersList.length} Accounts</span>
+          </div>
+          <div className="table-container">
+            <table className="table-modern">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  <th style={{ padding: '12px 8px' }}>Email ID</th>
-                  <th style={{ padding: '12px 8px' }}>Role</th>
-                  <th style={{ padding: '12px 8px', textAlign: 'right' }}>Actions</th>
+                <tr>
+                  <th>Email Address</th>
+                  <th>Assigned Role</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {usersList.map(usr => (
-                  <tr key={usr.id} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>
-                    <td style={{ padding: '12px 8px', color: 'var(--text-main)', fontWeight: 500 }}>{usr.email}</td>
-                    <td style={{ padding: '12px 8px' }}>
-                      <span style={{
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        background: usr.role === 'ADMIN' ? 'rgba(239,68,68,0.1)' : usr.role === 'CREATOR' ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.05)',
-                        color: usr.role === 'ADMIN' ? 'var(--status-failed)' : usr.role === 'CREATOR' ? '#3b82f6' : 'var(--text-muted)',
-                        fontWeight: 600
-                      }}>
+                  <tr key={usr.id}>
+                    <td style={{ fontWeight: 500 }}>{usr.email}</td>
+                    <td>
+                      <span className={`badge badge-${usr.role === 'ADMIN' ? 'danger' : usr.role === 'CREATOR' ? 'primary' : 'secondary'}`}>
                         {usr.role}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right' }}>
                       <select
                         value={usr.role}
                         onChange={(e) => handleRoleChange(usr.id, e.target.value)}
                         disabled={isUpdating}
-                        style={{
-                          background: '#0d1321',
-                          color: 'var(--text-main)',
-                          border: '1px solid var(--border-color)',
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '13px',
-                          outline: 'none',
-                          cursor: 'pointer'
-                        }}
+                        className="form-select"
+                        style={{ width: 'auto', display: 'inline-block', height: '32px', fontSize: '12px', padding: '0 8px' }}
                       >
                         <option value="CONSUMER">CONSUMER</option>
                         <option value="CREATOR">CREATOR</option>
@@ -273,27 +264,29 @@ export default function AdminDashboard() {
 
         {/* Database Metrics Table Summary */}
         {stats && (
-          <div className="card" style={{ padding: '24px' }}>
-            <h3 style={{ color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <HardDrive size={20} style={{ color: 'var(--color-primary)' }} />
-              <span>Relational volumes</span>
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#0d1321', borderRadius: '6px' }}>
+          <div className="card">
+            <div className="section-header">
+              <h3 className="section-title">
+                <HardDrive size={20} className="section-title-icon" />
+                <span>Relational Volumes</span>
+              </h3>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="card-subtle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>User Accounts</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 'bold' }}>{stats.users_count} records</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{stats.users_count} records</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#0d1321', borderRadius: '6px' }}>
+              <div className="card-subtle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Ingested Documents</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 'bold' }}>{stats.documents_count} files</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{stats.documents_count} files</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#0d1321', borderRadius: '6px' }}>
+              <div className="card-subtle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Extracted Text Chunks</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 'bold' }}>{stats.chunks_count} indexed</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{stats.chunks_count} indexed</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#0d1321', borderRadius: '6px' }}>
+              <div className="card-subtle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Opportunities Discovered</span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 'bold' }}>{stats.opportunities_count} logged</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{stats.opportunities_count} logged</span>
               </div>
             </div>
           </div>
