@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, getUserRole } from '../services/api';
 import { useToast } from '../components/ToastContext';
-import { SkeletonBox, SkeletonCard } from '../components/SkeletonLoader';
+import { SkeletonBox, SkeletonCard, SkeletonList } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import { 
   FileText, 
@@ -516,19 +516,21 @@ export default function DocGenerator() {
       )}
 
       {/* Main Grid Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: '32px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: 'var(--space-6)', alignItems: 'start' }}>
         
         {/* LEFT COLUMN: Generation Form & Archive Registry */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           
           {/* Form Card */}
           <div className="card">
-            <h3 style={{ fontSize: '18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Cpu size={18} style={{ color: 'var(--color-primary)' }} />
-              <span>Draft New Specification</span>
-            </h3>
+            <div className="section-header">
+              <h3 className="section-title">
+                <Cpu size={18} className="section-title-icon" />
+                <span>Draft New Specification</span>
+              </h3>
+            </div>
 
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
               <label className="form-label">Template Type</label>
               <select 
                 value={docType} 
@@ -555,7 +557,7 @@ export default function DocGenerator() {
               </select>
             </div>
 
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: 'var(--space-5)' }}>
               <label className="form-label">Document Title</label>
               <input 
                 type="text" 
@@ -571,9 +573,9 @@ export default function DocGenerator() {
             ) : (
               <button 
                 onClick={handleGenerate}
-                className="btn btn-primary btn-full"
+                className="btn btn-primary"
                 disabled={isGenerating}
-                style={{ gap: '8px' }}
+                style={{ width: '100%', gap: '8px' }}
               >
                 {isGenerating ? (
                   <>
@@ -592,13 +594,16 @@ export default function DocGenerator() {
 
           {/* Registry Archive Card */}
           <div className="card">
-            <h3 style={{ fontSize: '18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <BookOpen size={18} style={{ color: 'var(--color-secondary)' }} />
-              <span>Specs Archive</span>
-            </h3>
+            <div className="section-header">
+              <h3 className="section-title">
+                <BookOpen size={18} className="section-title-icon" />
+                <span>Specs Archive</span>
+              </h3>
+              <span className="badge badge-secondary">{docList.length} Files</span>
+            </div>
 
             {isLoadingList ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading registry...</p>
+              <SkeletonList items={3} />
             ) : docList.length === 0 ? (
               <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>No documents generated yet. Use form above.</p>
             ) : (
@@ -607,21 +612,19 @@ export default function DocGenerator() {
                   <div 
                     key={doc.id}
                     onClick={() => handleSelectDoc(doc.id)}
+                    className="card-subtle"
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: selectedDocId === doc.id ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                      border: selectedDocId === doc.id ? '1px solid var(--color-primary)' : '1px solid transparent',
-                      cursor: 'pointer',
-                      transition: 'var(--transition-fast)'
+                      padding: '10px 14px',
+                      background: selectedDocId === doc.id ? 'var(--color-primary-subtle)' : 'var(--card-subtle-bg)',
+                      borderLeft: selectedDocId === doc.id ? '3px solid var(--color-primary)' : '1px solid var(--border-color)',
+                      cursor: 'pointer'
                     }}
-                    className="spec-item"
                   >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '170px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc.title}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '200px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc.title}>
                         {doc.title}
                       </span>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -631,11 +634,10 @@ export default function DocGenerator() {
                     
                     <button 
                       onClick={(e) => handleDeleteDoc(doc.id, e)}
-                      style={{ background: 'none', border: 'none', color: 'var(--text-dark)', cursor: 'pointer' }}
-                      onMouseEnter={(e) => e.target.style.color = 'var(--status-failed)'}
-                      onMouseLeave={(e) => e.target.style.color = 'var(--text-dark)'}
+                      className="btn-icon btn-icon-sm"
+                      title="Delete document"
                     >
-                      <Trash2 size={13} />
+                      <Trash2 size={13} style={{ color: 'var(--status-failed)' }} />
                     </button>
                   </div>
                 ))}
@@ -646,14 +648,14 @@ export default function DocGenerator() {
         </div>
 
         {/* RIGHT COLUMN: Professional Rich Text Document View & Export Dropdown */}
-        <div className="card" style={{ minHeight: '520px', display: 'flex', flexDirection: 'column' }}>
+        <div className="card" style={{ minHeight: '560px', display: 'flex', flexDirection: 'column', padding: 'var(--space-6)' }}>
           {!selectedDocId ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dark)', padding: '100px 0' }}>
-              <FileText size={64} style={{ opacity: 0.1, marginBottom: '16px' }} />
-              <p>Select a specification file from the specs archive to preview contents.</p>
+              <FileText size={56} style={{ opacity: 0.15, marginBottom: '16px', color: 'var(--color-primary)' }} />
+              <p style={{ fontSize: '14px' }}>Select a specification file from the specs archive to preview contents.</p>
             </div>
           ) : isLoadingDetail ? (
-            <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '80px 0' }}>
               <Loader2 size={40} className="animate-spin" style={{ animation: 'spin 1s linear infinite', color: 'var(--color-primary)' }} />
             </div>
           ) : selectedDocContent ? (
@@ -662,9 +664,9 @@ export default function DocGenerator() {
               {/* Document Header & Multi-format Export Control */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                  <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0 }}>{selectedDocContent.title}</h2>
+                  <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>{selectedDocContent.title}</h2>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Type: {selectedDocContent.doc_type.toUpperCase()} • Author: {selectedDocContent.author || 'system'}
+                    Type: <strong style={{ color: 'var(--color-primary)' }}>{selectedDocContent.doc_type.toUpperCase()}</strong> • Author: {selectedDocContent.author || 'system'}
                   </span>
                 </div>
 
@@ -673,7 +675,7 @@ export default function DocGenerator() {
                   <button 
                     onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
                     className="btn btn-primary" 
-                    style={{ gap: '8px', padding: '8px 16px', fontSize: '13px' }}
+                    style={{ gap: '8px', padding: '0 16px', height: '36px', fontSize: '13px' }}
                   >
                     <Download size={14} />
                     <span>Export & Download</span>
@@ -681,39 +683,10 @@ export default function DocGenerator() {
                   </button>
 
                   {isExportMenuOpen && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '100%',
-                      right: 0,
-                      marginTop: '6px',
-                      background: 'var(--bg-sidebar)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                      zIndex: 100,
-                      padding: '6px',
-                      minWidth: '210px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px'
-                    }}>
+                    <div className="dropdown-menu dropdown-right" style={{ minWidth: '220px' }}>
                       <button 
                         onClick={() => handleExportFormat('pdf')}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          padding: '8px 12px',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-main)',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          borderRadius: '6px',
-                          textAlign: 'left'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                        className="dropdown-item"
                       >
                         <Printer size={15} style={{ color: '#ef4444' }} />
                         <span>PDF Document (.pdf)</span>
@@ -721,21 +694,7 @@ export default function DocGenerator() {
 
                       <button 
                         onClick={() => handleExportFormat('docx')}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          padding: '8px 12px',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-main)',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          borderRadius: '6px',
-                          textAlign: 'left'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                        className="dropdown-item"
                       >
                         <FileSpreadsheet size={15} style={{ color: '#3b82f6' }} />
                         <span>Microsoft Word (.docx)</span>
@@ -743,45 +702,25 @@ export default function DocGenerator() {
 
                       <button 
                         onClick={() => handleExportFormat('txt')}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          padding: '8px 12px',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-main)',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          borderRadius: '6px',
-                          textAlign: 'left'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                        className="dropdown-item"
                       >
-                        <FileType size={15} style={{ color: '#94a3b8' }} />
+                        <FileType size={15} style={{ color: '#10b981' }} />
                         <span>Plain Text (.txt)</span>
                       </button>
 
                       <button 
-                        onClick={() => handleExportFormat('md')}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          padding: '8px 12px',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-main)',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          borderRadius: '6px',
-                          textAlign: 'left'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                        onClick={() => handleExportFormat('html')}
+                        className="dropdown-item"
                       >
-                        <FileCode size={15} style={{ color: '#6366f1' }} />
+                        <Globe size={15} style={{ color: '#f59e0b' }} />
+                        <span>HTML Document (.html)</span>
+                      </button>
+
+                      <button 
+                        onClick={() => handleExportFormat('md')}
+                        className="dropdown-item"
+                      >
+                        <FileCode size={15} style={{ color: '#a855f7' }} />
                         <span>Markdown (.md)</span>
                       </button>
 
@@ -817,42 +756,32 @@ export default function DocGenerator() {
                   flex: 1, 
                   maxHeight: '620px', 
                   overflowY: 'auto', 
-                  background: 'rgba(15, 23, 42, 0.6)', 
-                  padding: '32px', 
-                  borderRadius: '10px', 
+                  background: 'var(--bg-input)', 
+                  padding: 'var(--space-6)', 
+                  borderRadius: 'var(--radius-lg)', 
                   border: '1px solid var(--border-color)',
-                  color: '#f8fafc',
-                  lineHeight: '1.7',
-                  boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.3)'
+                  color: 'var(--text-main)',
+                  lineHeight: '1.7'
                 }}
               >
                 {/* Embedded Document Header Banner */}
-                <div style={{ 
-                  background: 'rgba(99, 102, 241, 0.1)', 
-                  border: '1px solid rgba(99, 102, 241, 0.2)', 
-                  borderRadius: '8px', 
+                <div className="card-subtle" style={{ 
                   padding: '16px 20px', 
-                  marginBottom: '28px',
+                  marginBottom: 'var(--space-6)',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  borderLeft: '4px solid var(--color-primary)'
                 }}>
                   <div>
-                    <span style={{ fontSize: '11px', textTransform: 'uppercase', tracking: '0.05em', color: 'var(--color-primary)', fontWeight: 700 }}>
+                    <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary)', fontWeight: 700 }}>
                       Official Specification Draft
                     </span>
-                    <h2 style={{ fontSize: '20px', margin: '4px 0 0 0', color: '#ffffff' }}>
+                    <h2 style={{ fontSize: '20px', margin: '4px 0 0 0', color: 'var(--text-main)', fontWeight: 800 }}>
                       {selectedDocContent.title}
                     </h2>
                   </div>
-                  <span style={{ 
-                    fontSize: '11px', 
-                    fontWeight: 600, 
-                    padding: '4px 10px', 
-                    borderRadius: '12px', 
-                    background: 'rgba(6, 182, 212, 0.15)', 
-                    color: 'var(--color-secondary)' 
-                  }}>
+                  <span className="badge badge-primary">
                     {selectedDocContent.doc_type.toUpperCase()}
                   </span>
                 </div>

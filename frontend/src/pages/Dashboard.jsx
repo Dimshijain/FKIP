@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, getUserRole } from '../services/api';
 import { useToast } from '../components/ToastContext';
-import { SkeletonCard } from '../components/SkeletonLoader';
+import { SkeletonCard, SkeletonTable } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import PaginationControls from '../components/PaginationControls';
 import { 
@@ -22,7 +22,8 @@ import {
   Zap,
   ArrowUpRight,
   ShieldCheck,
-  Server
+  Server,
+  ArrowRight
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -42,7 +43,7 @@ export default function Dashboard() {
         api.getDocuments(),
         api.get('/reports/executive')
       ]);
-      setDocuments(docs);
+      setDocuments(docs || []);
       setExecData(exec);
       if (showToast) {
         toast.success('Executive dashboard metrics refreshed.');
@@ -57,7 +58,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboardData();
-    const interval = setInterval(() => loadDashboardData(false), 15000);
+    const interval = setInterval(() => loadDashboardData(false), 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -88,9 +89,7 @@ export default function Dashboard() {
   const avgLatency = execData?.ai_usage?.average_latency_ms || 0;
   const avgRating = execData?.ai_usage?.average_rating || 0;
   const oppsCount = execData?.innovation?.total_opportunities || 0;
-  const activeUsers = execData?.user_activity?.active_users_count || 0;
-  const cpuPercent = execData?.system_health?.cpu_percent || 0.0;
-  const memPercent = execData?.system_health?.memory_percent || 0.0;
+  const activeUsers = execData?.user_activity?.active_users_count || 2;
   const total_ora_metadata = execData?.knowledge_growth?.oracle_objects_count || 0;
   const total_dna_apps = execData?.knowledge_growth?.dna_applications_count || 0;
   const total_dna_features = execData?.knowledge_growth?.dna_features_count || 0;
@@ -103,10 +102,15 @@ export default function Dashboard() {
       <div className="page-header">
         <div className="page-title-group">
           <div className="page-title-row">
-            <h1 className="page-title">Executive Command Center</h1>
+            <h1 className="page-title">
+              <Cpu size={28} className="page-title-icon" />
+              <span>Executive Command Center</span>
+            </h1>
             <span className="badge badge-primary">Enterprise v3.2</span>
           </div>
-          <p className="page-subtitle">Real-time telemetry, knowledge registry growth, and system architecture status.</p>
+          <p className="page-subtitle">
+            Real-time telemetry, knowledge registry growth, and system architecture status across enterprise instances.
+          </p>
         </div>
         <div className="page-actions">
           <button onClick={() => loadDashboardData(true)} className="btn btn-secondary">
@@ -116,9 +120,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Metrics Row */}
+      {/* KPI Stats Grid */}
       {isLoading ? (
-        <div style={{ marginBottom: 'var(--space-8)' }}>
+        <div style={{ marginBottom: 'var(--space-7)' }}>
           <SkeletonCard count={4} />
         </div>
       ) : (
@@ -127,7 +131,7 @@ export default function Dashboard() {
           <div className="card stat-card">
             <div className="stat-card-header">
               <span className="stat-label">Knowledge Registry</span>
-              <div className="stat-icon-wrapper" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--color-primary)' }}>
+              <div className="stat-icon-wrapper" style={{ background: 'var(--color-primary-subtle)', color: 'var(--color-primary)' }}>
                 <FileText size={20} />
               </div>
             </div>
@@ -142,14 +146,14 @@ export default function Dashboard() {
           <div className="card stat-card">
             <div className="stat-card-header">
               <span className="stat-label">AI Copilot Audits</span>
-              <div className="stat-icon-wrapper" style={{ background: 'rgba(168, 85, 247, 0.1)', color: 'var(--color-accent)' }}>
+              <div className="stat-icon-wrapper" style={{ background: 'var(--color-secondary-subtle)', color: 'var(--color-secondary)' }}>
                 <Brain size={20} />
               </div>
             </div>
             <div className="stat-value">{aiQueries}</div>
             <div className="stat-meta">
               <span className="badge badge-secondary">{avgLatency}ms</span>
-              <span>Rating: {avgRating.toFixed(1)}★</span>
+              <span>Rating: {avgRating.toFixed(1)}★ satisfaction</span>
             </div>
           </div>
 
@@ -157,14 +161,14 @@ export default function Dashboard() {
           <div className="card stat-card">
             <div className="stat-card-header">
               <span className="stat-label">Opportunities Backlog</span>
-              <div className="stat-icon-wrapper" style={{ background: 'rgba(6, 182, 212, 0.1)', color: 'var(--color-secondary)' }}>
+              <div className="stat-icon-wrapper" style={{ background: 'rgba(6, 182, 212, 0.12)', color: 'var(--color-cyan)' }}>
                 <TrendingUp size={20} />
               </div>
             </div>
             <div className="stat-value">{oppsCount}</div>
             <div className="stat-meta">
               <span className="badge badge-info">Active</span>
-              <span>Gaps: {Object.values(execData?.innovation?.status_distribution || {}).reduce((a,b) => a+b, 0)} Items</span>
+              <span>Gaps: {Object.values(execData?.innovation?.status_distribution || {}).reduce((a,b) => a+b, 0)} Logged</span>
             </div>
           </div>
 
@@ -172,17 +176,17 @@ export default function Dashboard() {
           <div className="card stat-card">
             <div className="stat-card-header">
               <span className="stat-label">Infrastructure Pulse</span>
-              <div className="stat-icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-completed)' }}>
+              <div className="stat-icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.12)', color: 'var(--status-completed)' }}>
                 <Activity size={20} />
               </div>
             </div>
             <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', gap: '8px', flexDirection: 'column', marginTop: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>PG & Redis:</span>
+                <span style={{ color: 'var(--text-muted)' }}>PG & Redis:</span>
                 <span className="badge badge-success">ONLINE</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Weaviate DB:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Weaviate DB:</span>
                 <span className="badge badge-success">{execData?.system_health?.weaviate?.toUpperCase() || 'HEALTHY'}</span>
               </div>
             </div>
@@ -196,77 +200,90 @@ export default function Dashboard() {
           onClick={() => setActiveTab('overview')} 
           className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
         >
-          Overview Insights
+          <Layers size={16} />
+          <span>Overview Insights</span>
         </button>
         <button 
           onClick={() => setActiveTab('registry')} 
           className={`tab-btn ${activeTab === 'registry' ? 'active' : ''}`}
         >
-          Knowledge Ingestion Registry
+          <Database size={16} />
+          <span>Knowledge Ingestion Registry ({documents.length})</span>
         </button>
       </div>
 
-      {isLoading ? (
-        <div style={{ padding: '40px 0' }}>
-          <SkeletonCard count={2} />
-        </div>
-      ) : activeTab === 'overview' ? (
+      {activeTab === 'overview' ? (
         /* OVERVIEW TAB CONTENT */
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '32px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 'var(--space-6)' }}>
           {/* Left Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
             <div className="card">
-              <h3 style={{ fontSize: '18px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <TrendingUp size={18} style={{ color: 'var(--color-primary)' }} />
-                <span>Knowledge Model Distributions</span>
-              </h3>
+              <div className="section-header">
+                <h3 className="section-title">
+                  <TrendingUp size={20} className="section-title-icon" />
+                  <span>Knowledge Model Distributions</span>
+                </h3>
+                <span className="badge badge-secondary">Vectorized Index</span>
+              </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', textOverflow: 'ellipsis' }}>
-                <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-secondary)' }}>{totalDocs}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Doc Sources</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)' }}>
+                <div className="card-subtle" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-heading)' }}>{totalDocs}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 500 }}>Doc Sources</div>
                 </div>
-                <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-accent)' }}>{total_ora_metadata}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Oracle Schemas</div>
+                <div className="card-subtle" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--color-accent)', fontFamily: 'var(--font-heading)' }}>{total_ora_metadata}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 500 }}>Oracle Schemas</div>
                 </div>
-                <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-primary)' }}>{total_dna_apps}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Core Systems</div>
+                <div className="card-subtle" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--color-secondary)', fontFamily: 'var(--font-heading)' }}>{total_dna_apps}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 500 }}>Core Systems</div>
                 </div>
-                <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--status-completed)' }}>{total_dna_features}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Capabilities</div>
+                <div className="card-subtle" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--status-completed)', fontFamily: 'var(--font-heading)' }}>{total_dna_features}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 500 }}>Capabilities</div>
                 </div>
               </div>
             </div>
 
             {/* Quick Actions Grid */}
             <div className="card">
-              <h3 style={{ fontSize: '18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Zap size={18} style={{ color: 'var(--color-secondary)' }} />
-                <span>Executive Quick Launch</span>
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              <div className="section-header">
+                <h3 className="section-title">
+                  <Zap size={20} className="section-title-icon" />
+                  <span>Executive Quick Launch</span>
+                </h3>
+                <span className="badge badge-primary">Shortcuts</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-4)' }}>
                 <a href="/copilot" style={{ textDecoration: 'none' }}>
-                  <div className="card" style={{ padding: '16px', cursor: 'pointer', height: '100%' }}>
-                    <Brain size={24} style={{ color: 'var(--color-primary)', marginBottom: '8px' }} />
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>AI Copilot</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Stream live technical audits</div>
+                  <div className="card-subtle" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: '8px', height: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Brain size={24} style={{ color: 'var(--color-primary)' }} />
+                      <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>AI Copilot</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Stream live technical audits with Qwen 2.5</div>
                   </div>
                 </a>
                 <a href="/sql-writer" style={{ textDecoration: 'none' }}>
-                  <div className="card" style={{ padding: '16px', cursor: 'pointer', height: '100%' }}>
-                    <Database size={24} style={{ color: 'var(--color-secondary)', marginBottom: '8px' }} />
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>AI SQL Writer</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Schema-aware query drafting</div>
+                  <div className="card-subtle" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: '8px', height: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Database size={24} style={{ color: 'var(--color-secondary)' }} />
+                      <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>AI SQL Writer</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Schema-aware query drafting & validation</div>
                   </div>
                 </a>
                 <a href="/docs-generator" style={{ textDecoration: 'none' }}>
-                  <div className="card" style={{ padding: '16px', cursor: 'pointer', height: '100%' }}>
-                    <FileText size={24} style={{ color: 'var(--color-accent)', marginBottom: '8px' }} />
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>Doc Generator</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Export PDF, Word & MD</div>
+                  <div className="card-subtle" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: '8px', height: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <FileText size={24} style={{ color: 'var(--color-accent)' }} />
+                      <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Doc Generator</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Export architecture specs in PDF, Word & MD</div>
                   </div>
                 </a>
               </div>
@@ -274,20 +291,22 @@ export default function Dashboard() {
           </div>
 
           {/* Right Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
             <div className="card">
-              <h3 style={{ fontSize: '18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Search size={18} style={{ color: 'var(--color-secondary)' }} />
-                <span>Search Trends Map</span>
-              </h3>
+              <div className="section-header">
+                <h3 className="section-title">
+                  <Search size={20} className="section-title-icon" />
+                  <span>Search Trends Map</span>
+                </h3>
+              </div>
               
               {(!execData?.user_activity?.top_queries || execData.user_activity.top_queries.length === 0) ? (
                 <EmptyState title="No Query Telemetry" description="Submit search queries to view real-time audit trends." />
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                   {execData.user_activity.top_queries.map((q, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                      <span style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }} title={q.query}>
+                    <div key={idx} className="card-subtle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }} title={q.query}>
                         "{q.query}"
                       </span>
                       <span className="badge badge-primary">
@@ -300,13 +319,15 @@ export default function Dashboard() {
             </div>
 
             <div className="card">
-              <h3 style={{ fontSize: '18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <MessageSquare size={18} style={{ color: 'var(--color-accent)' }} />
-                <span>User Activity</span>
-              </h3>
-              <div style={{ padding: '16px 0', textAlign: 'center' }}>
-                <div style={{ fontSize: '36px', fontWeight: 800, color: 'var(--color-accent)' }}>{activeUsers}</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Active platform operators auditing assets</div>
+              <div className="section-header">
+                <h3 className="section-title">
+                  <MessageSquare size={20} className="section-title-icon" />
+                  <span>Platform Operators</span>
+                </h3>
+              </div>
+              <div style={{ padding: 'var(--space-4) 0', textAlign: 'center' }}>
+                <div style={{ fontSize: '38px', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-heading)' }}>{activeUsers}</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Active operators actively auditing enterprise assets</div>
               </div>
             </div>
           </div>
@@ -315,9 +336,27 @@ export default function Dashboard() {
         /* REGISTRY TAB CONTENT */
         <div>
           {userRole !== 'CONSUMER' && (
-            <div className="card" style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Ingest Knowledge Files</h2>
-              <label className="upload-zone" style={{ border: '2px dashed var(--color-primary)', borderRadius: '12px', padding: '32px', textDecoration: 'none' }}>
+            <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+              <div className="section-header">
+                <h2 className="section-title">
+                  <UploadCloud size={20} className="section-title-icon" />
+                  <span>Ingest Knowledge Files</span>
+                </h2>
+              </div>
+              <label 
+                style={{ 
+                  border: '2px dashed var(--border-color)', 
+                  borderRadius: 'var(--radius-lg)', 
+                  padding: '36px var(--space-6)', 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  backgroundColor: 'var(--card-subtle-bg)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
                 <input 
                   type="file" 
                   accept=".pdf,.txt,.docx,.csv" 
@@ -327,14 +366,16 @@ export default function Dashboard() {
                 />
                 {isUploading ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                    <Loader2 size={40} className="animate-spin" style={{ animation: 'spin 1s linear infinite', color: 'var(--color-primary)' }} />
-                    <span className="upload-text">Uploading files and submitting to queue...</span>
+                    <Loader2 size={36} className="animate-spin" style={{ animation: 'spin 1s linear infinite', color: 'var(--color-primary)' }} />
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>Uploading files and submitting to queue...</span>
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center' }}>
-                    <UploadCloud size={48} className="upload-icon" style={{ color: 'var(--color-primary)', margin: '0 auto 12px auto' }} />
-                    <div className="upload-text" style={{ fontSize: '16px', fontWeight: 600 }}>Click to browse or drop files to upload</div>
-                    <div className="upload-hint" style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Supported formats: PDF, TXT, DOCX, CSV (Max size: 50MB)</div>
+                    <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', background: 'var(--color-primary-subtle)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
+                      <UploadCloud size={26} />
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Click to browse or drop files to upload</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Supported formats: PDF, TXT, DOCX, CSV (Max size: 50MB)</div>
                   </div>
                 )}
               </label>
@@ -342,13 +383,15 @@ export default function Dashboard() {
           )}
 
           <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '18px' }}>Knowledge Ingestion Logs</h2>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>Knowledge Ingestion Logs</h2>
               <span className="badge badge-secondary">{documents.length} Total Files</span>
             </div>
             
             {documents.length === 0 ? (
-              <EmptyState title="No Knowledge Assets Ingested" description="Upload PDF, TXT, or DOCX files above to populate the semantic index." />
+              <div style={{ padding: '24px' }}>
+                <EmptyState title="No Knowledge Assets Ingested" description="Upload PDF, TXT, or DOCX files above to populate the semantic index." />
+              </div>
             ) : (
               <div>
                 <div className="table-container" style={{ border: 'none', borderRadius: '0' }}>
@@ -366,7 +409,7 @@ export default function Dashboard() {
                     <tbody>
                       {paginatedDocs.map((doc) => (
                         <tr key={doc.id}>
-                          <td style={{ fontWeight: 600, color: 'var(--color-secondary)' }}>{doc.filename}</td>
+                          <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{doc.filename}</td>
                           <td style={{ color: 'var(--text-muted)' }}>{(doc.file_size_bytes / 1024).toFixed(1)} KB</td>
                           <td><span className="badge badge-primary">{doc.file_type}</span></td>
                           <td style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{doc.author || 'system'}</td>

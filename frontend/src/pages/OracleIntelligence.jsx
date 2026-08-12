@@ -16,7 +16,8 @@ import {
   Search,
   Filter,
   Eye,
-  X
+  X,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function OracleIntelligence() {
@@ -65,8 +66,8 @@ export default function OracleIntelligence() {
         api.get('/oracle/objects'),
         api.get('/oracle/dependencies')
       ]);
-      setObjects(objData);
-      setDependencies(depData);
+      setObjects(objData || []);
+      setDependencies(depData || []);
     } catch (err) {
       console.error("Failed to load Oracle metadata", err);
     } finally {
@@ -90,12 +91,15 @@ export default function OracleIntelligence() {
         type: 'success', 
         msg: `Successfully parsed DDL! Indexed ${res.objects_created} objects and ${res.relationships_created} dependencies.` 
       });
+      toast.success('Oracle DDL parsed & dependencies indexed.');
       fetchSchemaData();
     } catch (err) {
+      const errDetail = err.response?.data?.detail || err.message || "Failed to process Oracle DDL file.";
       setUploadStatus({ 
         type: 'error', 
-        msg: err.response?.data?.detail || "Failed to process Oracle DDL file." 
+        msg: errDetail 
       });
+      toast.error(errDetail);
     } finally {
       setIsUploading(false);
     }
@@ -105,8 +109,9 @@ export default function OracleIntelligence() {
     setSelectedObject(obj);
     try {
       const results = await api.get(`/oracle/impact-analysis?object_id=${obj.id}`);
-      setImpactResults(results);
+      setImpactResults(results || []);
       setActiveTab('impact');
+      toast.info(`Traced impact for ${obj.object_name}.`);
     } catch (err) {
       console.error("Impact analysis failed", err);
     }
@@ -115,7 +120,6 @@ export default function OracleIntelligence() {
   const renderErDiagram = () => {
     if (!window.mermaid || !mermaidRef.current) return;
     
-    // Generate Mermaid DDL dynamically
     const tables = objects.filter(o => o.object_type === 'TABLE');
     if (tables.length === 0) {
       mermaidRef.current.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 40px;">No schemas parsed yet. Upload an Oracle DDL file to generate diagram.</div>`;
@@ -124,13 +128,10 @@ export default function OracleIntelligence() {
 
     let graphDefinition = 'erDiagram\n';
     
-    // Define tables
     tables.forEach(t => {
-      // Basic ER representation
       graphDefinition += `    ${t.object_name} {\n        varchar object_type\n    }\n`;
     });
 
-    // Define relations (Foreign Keys)
     dependencies.forEach(d => {
       if (d.dep_type === 'FOREIGN_KEY') {
         const sourceObj = objects.find(o => o.id === d.source_object_id);
@@ -215,28 +216,31 @@ export default function OracleIntelligence() {
           onClick={() => setActiveTab('schema')}
           className={`tab-btn ${activeTab === 'schema' ? 'active' : ''}`}
         >
-          Schema Objects ({objects.length})
+          <Database size={15} />
+          <span>Schema Objects ({objects.length})</span>
         </button>
         <button 
           onClick={() => setActiveTab('er')}
           className={`tab-btn ${activeTab === 'er' ? 'active' : ''}`}
         >
-          Visual ER Diagram
+          <Layers size={15} />
+          <span>Visual ER Diagram</span>
         </button>
         <button 
           onClick={() => setActiveTab('impact')}
           className={`tab-btn ${activeTab === 'impact' ? 'active' : ''}`}
         >
-          Change Impact Simulation
+          <Activity size={15} />
+          <span>Change Impact Simulation</span>
         </button>
       </div>
 
       {/* Workspace Body */}
       <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
         {activeTab === 'schema' && (
-          <div style={{ padding: '24px' }}>
+          <div style={{ padding: 'var(--space-6)' }}>
             {/* Filter Bar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-5)', flexWrap: 'wrap', gap: '16px' }}>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {['ALL', 'TABLE', 'VIEW', 'PACKAGE', 'PROCEDURE', 'TRIGGER'].map(t => (
                   <button
@@ -250,20 +254,22 @@ export default function OracleIntelligence() {
                 ))}
               </div>
 
-              <div style={{ position: 'relative', width: '260px' }}>
+              <div className="search-input-group" style={{ width: '280px' }}>
+                <Search size={14} className="search-input-icon" />
                 <input
                   type="text"
                   className="form-input"
                   placeholder="Filter objects by name..."
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                  style={{ padding: '8px 12px 8px 32px', fontSize: '13px', width: '100%' }}
+                  style={{ height: '36px', fontSize: '13px' }}
                 />
-                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               </div>
             </div>
 
-            {(() => {
+            {isLoading ? (
+              <SkeletonTable rows={5} cols={5} />
+            ) : (() => {
               const filtered = objects.filter(obj => {
                 const matchType = typeFilter === 'ALL' || obj.object_type === typeFilter;
                 const matchSearch = obj.object_name.toLowerCase().includes(searchQuery.toLowerCase()) || obj.owner.toLowerCase().includes(searchQuery.toLowerCase());
@@ -278,7 +284,7 @@ export default function OracleIntelligence() {
 
               return (
                 <div>
-                  <div className="table-container">
+                  <div className="table-container" style={{ border: 'none', borderRadius: '0' }}>
                     <table className="table-modern">
                       <thead>
                         <tr>
@@ -294,16 +300,15 @@ export default function OracleIntelligence() {
                           const depsCount = dependencies.filter(d => d.source_object_id === obj.id).length;
                           return (
                             <tr key={obj.id}>
-                              <td style={{ fontWeight: 600, color: 'var(--color-secondary)' }}>{obj.object_name}</td>
+                              <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{obj.object_name}</td>
                               <td><span className="badge badge-info">{obj.object_type}</span></td>
                               <td style={{ color: 'var(--text-muted)' }}>{obj.owner}</td>
-                              <td><span className="badge badge-primary">{depsCount} Downstream</span></td>
+                              <td><span className="badge badge-secondary">{depsCount} Downstream</span></td>
                               <td style={{ textAlign: 'right' }}>
                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                   <button 
                                     onClick={() => setActiveModalObject(obj)}
-                                    className="btn btn-secondary"
-                                    style={{ padding: '4px 10px', fontSize: '12px', gap: '4px' }}
+                                    className="btn btn-secondary btn-sm"
                                     title="Inspect DDL"
                                   >
                                     <Eye size={13} />
@@ -311,8 +316,7 @@ export default function OracleIntelligence() {
                                   </button>
                                   <button 
                                     onClick={() => triggerImpactAnalysis(obj)}
-                                    className="btn btn-primary"
-                                    style={{ padding: '4px 10px', fontSize: '12px', gap: '4px' }}
+                                    className="btn btn-primary btn-sm"
                                   >
                                     <Play size={12} />
                                     <span>Trace Impact</span>
@@ -340,16 +344,21 @@ export default function OracleIntelligence() {
         )}
 
         {activeTab === 'er' && (
-          <div>
-            <h3 style={{ marginBottom: '16px', color: 'var(--text-main)' }}>Visual Entity Relationship Modeler</h3>
+          <div style={{ padding: 'var(--space-6)' }}>
+            <div className="section-header">
+              <h3 className="section-title">
+                <Layers size={18} className="section-title-icon" />
+                <span>Visual Entity Relationship Modeler</span>
+              </h3>
+            </div>
             <div 
               ref={mermaidRef} 
               className="mermaid" 
               style={{ 
-                background: '#040711', 
+                background: 'var(--bg-input)', 
                 padding: '32px', 
-                borderRadius: '8px', 
-                minHeight: '300px',
+                borderRadius: 'var(--radius-lg)', 
+                minHeight: '360px',
                 display: 'flex',
                 justifyContent: 'center',
                 overflowX: 'auto',
@@ -362,67 +371,67 @@ export default function OracleIntelligence() {
         )}
 
         {activeTab === 'impact' && (
-          <div>
+          <div style={{ padding: 'var(--space-6)' }}>
             {!selectedObject ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-                <Activity size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                <h3>No trace object selected</h3>
-                <p>Select a table or view in the Schema catalog and click "Trace Impact" to map dependencies.</p>
+                <Activity size={48} style={{ opacity: 0.2, margin: '0 auto 16px auto', color: 'var(--color-primary)' }} />
+                <h3 style={{ color: 'var(--text-main)', marginBottom: '6px' }}>No Trace Object Selected</h3>
+                <p style={{ fontSize: '14px', maxWidth: '400px', margin: '0 auto' }}>Select a table or view in the Schema Objects catalog and click "Trace Impact" to map dependencies.</p>
               </div>
             ) : (
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px' }}>
-                  <div style={{ background: 'rgba(59, 130, 246, 0.1)', p: '12px', borderRadius: '8px', display: 'flex', padding: '12px' }}>
-                    <Database size={24} style={{ color: '#3b82f6' }} />
+                <div className="card-subtle" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: 'var(--space-5)' }}>
+                  <div style={{ background: 'var(--color-primary-subtle)', borderRadius: 'var(--radius-md)', padding: '12px', color: 'var(--color-primary)', display: 'flex' }}>
+                    <Database size={24} />
                   </div>
                   <div>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Tracing Source</span>
-                    <h3 style={{ color: 'var(--text-main)' }}>{selectedObject.object_name} <span style={{ fontSize: '13px', fontWeight: 'normal', color: 'var(--text-muted)' }}>({selectedObject.object_type})</span></h3>
+                    <span style={{ fontSize: '11px', color: 'var(--text-dark)', textTransform: 'uppercase', fontWeight: 700 }}>Tracing Source</span>
+                    <h3 style={{ color: 'var(--text-main)', fontSize: '18px' }}>
+                      {selectedObject.object_name} <span style={{ fontSize: '13px', fontWeight: 'normal', color: 'var(--text-muted)' }}>({selectedObject.object_type})</span>
+                    </h3>
                   </div>
                 </div>
 
-                <h4 style={{ marginBottom: '16px', color: 'var(--text-main)' }}>Downstream Affected Objects ({impactResults.length})</h4>
+                <div className="section-header">
+                  <h4 className="section-title" style={{ fontSize: '16px' }}>
+                    Downstream Affected Objects ({impactResults.length})
+                  </h4>
+                </div>
+
                 {impactResults.length === 0 ? (
-                  <div style={{ padding: '24px', background: 'rgba(34, 197, 94, 0.05)', color: 'var(--status-completed)', border: '1px dashed rgba(34, 197, 94, 0.2)', borderRadius: '8px', fontSize: '14px' }}>
-                    No cascading impact found. Modifying this table will not break any downstream views, procedures, or triggers.
+                  <div className="alert-banner alert-banner-success">
+                    <CheckCircle2 size={18} />
+                    <span>No cascading impact found. Modifying this table will not break any downstream views, procedures, or triggers.</span>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {impactResults.map((item, idx) => (
-                      <div key={item.id} style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'space-between',
-                        padding: '14px 16px', 
-                        background: '#0d1321', 
-                        border: '1px solid var(--border-color)', 
-                        borderRadius: '8px'
-                      }}>
+                    {impactResults.map((item) => (
+                      <div key={item.id} className="card-subtle" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <span style={{ 
-                            width: '24px', 
-                            height: '24px', 
-                            borderRadius: '12px', 
-                            background: 'rgba(239, 68, 68, 0.1)', 
+                            width: '26px', 
+                            height: '26px', 
+                            borderRadius: '50%', 
+                            background: 'rgba(239, 68, 68, 0.12)', 
                             color: 'var(--status-failed)', 
                             display: 'flex', 
                             alignItems: 'center', 
                             justifyContent: 'center',
-                            fontSize: '11px',
-                            fontWeight: 'bold'
+                            fontSize: '12px',
+                            fontWeight: 700
                           }}>
                             {item.depth}
                           </span>
                           <div>
-                            <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '15px' }}>{item.object_name}</span>
-                            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '15px' }}>{item.object_name}</span>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
                               Type: {item.object_type} | Cause: {item.dep_type}
                             </div>
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-failed)', fontSize: '13px' }}>
-                          <AlertTriangle size={14} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--status-failed)', fontSize: '13px', fontWeight: 600 }}>
+                          <AlertTriangle size={15} />
                           <span>Broken reference risk</span>
                         </div>
                       </div>
@@ -441,18 +450,18 @@ export default function OracleIntelligence() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Database size={20} style={{ color: 'var(--color-secondary)' }} />
-                <h3 style={{ fontSize: '18px' }}>{activeModalObject.object_name}</h3>
+                <Database size={20} style={{ color: 'var(--color-primary)' }} />
+                <h3 style={{ fontSize: '18px', fontWeight: 700 }}>{activeModalObject.object_name}</h3>
               </div>
-              <button onClick={() => setActiveModalObject(null)} className="toast-close">
-                <X size={18} />
+              <button onClick={() => setActiveModalObject(null)} className="btn-icon btn-icon-sm">
+                <X size={16} />
               </button>
             </div>
             <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
               <span className="badge badge-info">{activeModalObject.object_type}</span>
               <span className="badge badge-primary">Owner: {activeModalObject.owner}</span>
             </div>
-            <div style={{ background: 'var(--bg-input)', padding: '16px', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace', lineHeight: '1.6', whiteSpace: 'pre-wrap', maxHeight: '350px', overflowY: 'auto' }}>
+            <div style={{ background: 'var(--bg-input)', padding: '16px', borderRadius: 'var(--radius-md)', fontSize: '12px', fontFamily: 'var(--font-mono)', lineHeight: '1.6', whiteSpace: 'pre-wrap', maxHeight: '350px', overflowY: 'auto', border: '1px solid var(--border-color)' }}>
               {activeModalObject.ddl_script || `-- DDL Specification for ${activeModalObject.object_name}\nCREATE ${activeModalObject.object_type} ${activeModalObject.owner}.${activeModalObject.object_name} (\n  id NUMBER PRIMARY KEY,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);`}
             </div>
             <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import { useToast } from '../components/ToastContext';
-import { SkeletonTable } from '../components/SkeletonLoader';
+import { SkeletonCard } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import PaginationControls from '../components/PaginationControls';
 import { 
@@ -16,7 +16,8 @@ import {
   Search,
   Eye,
   X,
-  Code
+  Code,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function DnaCatalog() {
@@ -24,10 +25,11 @@ export default function DnaCatalog() {
   const [clusters, setClusters] = useState([]);
   const [threshold, setThreshold] = useState(0.80);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('catalog');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(6);
   const [activeModalApp, setActiveModalApp] = useState(null);
   const [uploadStatus, setUploadStatus] = useState({ type: '', msg: '' });
   const toast = useToast();
@@ -46,16 +48,18 @@ export default function DnaCatalog() {
   const fetchCatalogData = async () => {
     try {
       const appData = await api.get('/dna/apps');
-      setApps(appData);
+      setApps(appData || []);
     } catch (err) {
       console.error("Failed to load Core Banking applications", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const fetchClusters = async () => {
     try {
       const clusterData = await api.get(`/dna/clusters?threshold=${threshold}`);
-      setClusters(clusterData);
+      setClusters(clusterData || []);
     } catch (err) {
       console.error("Failed to fetch Core Banking clusters", err);
     }
@@ -77,15 +81,18 @@ export default function DnaCatalog() {
         type: 'success',
         msg: `Catalog processed! Successfully ingested specifications with ${res.features_indexed} indexed features.`
       });
+      toast.success('Core banking application specification indexed.');
       fetchCatalogData();
       if (activeTab === 'clusters') {
         fetchClusters();
       }
     } catch (err) {
+      const errDetail = err.response?.data?.detail || err.message || "Failed to process Core Banking applications file.";
       setUploadStatus({
         type: 'error',
-        msg: err.response?.data?.detail || "Failed to process Core Banking applications file."
+        msg: errDetail
       });
+      toast.error(errDetail);
     } finally {
       setIsUploading(false);
     }
@@ -141,37 +148,41 @@ export default function DnaCatalog() {
           onClick={() => setActiveTab('catalog')}
           className={`tab-btn ${activeTab === 'catalog' ? 'active' : ''}`}
         >
-          Systems Catalog ({apps.length})
+          <AppWindow size={15} />
+          <span>Systems Catalog ({apps.length})</span>
         </button>
         <button 
           onClick={() => setActiveTab('clusters')}
           className={`tab-btn ${activeTab === 'clusters' ? 'active' : ''}`}
         >
-          Capability Redundancy Grouping
+          <Sliders size={15} />
+          <span>Capability Redundancy Grouping</span>
         </button>
       </div>
 
       {/* Dynamic Body */}
-      <div className="card">
+      <div className="card" style={{ padding: 'var(--space-6)' }}>
         {activeTab === 'catalog' && (
           <div>
             {/* Search Filter Bar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ position: 'relative', width: '300px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-5)', flexWrap: 'wrap', gap: '16px' }}>
+              <div className="search-input-group" style={{ width: '320px' }}>
+                <Search size={14} className="search-input-icon" />
                 <input
                   type="text"
                   className="form-input"
                   placeholder="Search application name or code..."
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                  style={{ padding: '8px 12px 8px 32px', fontSize: '13px', width: '100%' }}
+                  style={{ height: '38px', fontSize: '13px' }}
                 />
-                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               </div>
               <span className="badge badge-secondary">{apps.length} Total Systems</span>
             </div>
 
-            {(() => {
+            {isLoading ? (
+              <SkeletonCard count={3} />
+            ) : (() => {
               const filtered = apps.filter(app => 
                 app.app_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 app.app_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -186,27 +197,26 @@ export default function DnaCatalog() {
 
               return (
                 <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--space-5)', marginBottom: 'var(--space-5)' }}>
                     {paginated.map(app => (
-                      <div key={app.id} className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderLeft: '4px solid var(--color-primary)' }}>
+                      <div key={app.id} className="card-subtle" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderLeft: '4px solid var(--color-primary)' }}>
                         <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                             <span className="badge badge-primary">{app.app_code}</span>
                             <span className="badge badge-secondary">{app.platform}</span>
                           </div>
-                          <h3 style={{ color: 'var(--text-main)', marginBottom: '8px', fontSize: '18px' }}>{app.app_name}</h3>
+                          <h3 style={{ color: 'var(--text-main)', marginBottom: '8px', fontSize: '17px', fontWeight: 700 }}>{app.app_name}</h3>
                           <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: '1.5', marginBottom: '16px' }}>{app.description}</p>
                         </div>
 
                         <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>Owner: {app.owner}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>Owner: <strong style={{ color: 'var(--text-main)' }}>{app.owner}</strong></span>
                           <button 
                             onClick={() => setActiveModalApp(app)}
-                            className="btn btn-secondary"
-                            style={{ padding: '4px 10px', fontSize: '12px', gap: '4px' }}
+                            className="btn btn-secondary btn-sm"
                           >
-                            <Eye size={12} />
-                            <span>{app.features.length} Features</span>
+                            <Eye size={13} />
+                            <span>{app.features?.length || 0} Features</span>
                           </button>
                         </div>
                       </div>
@@ -229,21 +239,18 @@ export default function DnaCatalog() {
         {activeTab === 'clusters' && (
           <div>
             {/* Control Panel (Sensitivity Slider) */}
-            <div style={{ 
+            <div className="card-subtle" style={{ 
               display: 'flex', 
               alignItems: 'center', 
               gap: '24px', 
-              background: '#0d1321', 
               padding: '16px 24px', 
-              borderRadius: '8px', 
-              border: '1px solid var(--border-color)',
-              marginBottom: '24px'
+              marginBottom: 'var(--space-6)'
             }}>
-              <Sliders size={20} style={{ color: 'var(--color-primary)' }} />
+              <Sliders size={22} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
-                  <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>Vector Matching Sensitivity</span>
-                  <span style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>{Math.round(threshold * 100)}% Match</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                  <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>Vector Matching Sensitivity Threshold</span>
+                  <span className="badge badge-primary">{Math.round(threshold * 100)}% Match</span>
                 </div>
                 <input 
                   type="range" 
@@ -260,74 +267,44 @@ export default function DnaCatalog() {
             {/* Clusters List */}
             {clusters.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-                <CheckCircle size={48} style={{ opacity: 0.2, marginBottom: '16px', color: 'var(--status-completed)' }} />
-                <h3>No duplicate capabilities detected</h3>
-                <p>Clean system state! No applications share features matching this similarity threshold.</p>
+                <CheckCircle size={48} style={{ opacity: 0.2, margin: '0 auto 16px auto', color: 'var(--status-completed)' }} />
+                <h3 style={{ color: 'var(--text-main)', marginBottom: '6px' }}>No Duplicate Capabilities Detected</h3>
+                <p style={{ fontSize: '14px', maxWidth: '440px', margin: '0 auto' }}>Clean system state! No applications share features matching this similarity threshold.</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 {clusters.map(cluster => (
-                  <div key={cluster.cluster_id} style={{ 
-                    padding: '24px', 
-                    borderRadius: '8px', 
-                    background: '#0d1321', 
-                    border: '1px solid var(--border-color)' 
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                  <div key={cluster.cluster_id} className="card-subtle" style={{ padding: 'var(--space-5)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
                       <div>
-                        <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 'bold' }}>{cluster.cluster_id}</span>
-                        <h3 style={{ color: 'var(--text-main)', marginTop: '4px' }}>Capability: {cluster.primary_capability}</h3>
+                        <span style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700, textTransform: 'uppercase' }}>{cluster.cluster_id}</span>
+                        <h3 style={{ color: 'var(--text-main)', fontSize: '17px', fontWeight: 700, marginTop: '2px' }}>Capability: {cluster.primary_capability}</h3>
                       </div>
-                      <span style={{ 
-                        padding: '4px 12px', 
-                        borderRadius: '4px', 
-                        fontSize: '12px',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        color: 'var(--status-failed)',
-                        fontWeight: 'bold',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}>
+                      <span className="badge badge-danger">
                         <AlertCircle size={14} />
-                        <span>Redundancy Warning ({cluster.features.length} Apps)</span>
+                        <span>Redundancy Warning ({cluster.features?.length || 0} Apps)</span>
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {cluster.features.map((feat, idx) => (
-                        <div key={idx} style={{ 
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {cluster.features?.map((feat, idx) => (
+                        <div key={idx} className="card-subtle" style={{ 
                           display: 'flex', 
                           justifyContent: 'space-between', 
-                          alignItems: 'center',
-                          padding: '12px 16px', 
-                          background: idx === 0 ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.01)', 
-                          borderRadius: '6px',
-                          border: idx === 0 ? '1px solid rgba(59, 130, 246, 0.1)' : '1px solid transparent'
+                          alignItems: 'center', 
+                          padding: '12px 16px',
+                          background: 'var(--bg-input)'
                         }}>
-                          <div>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                              {idx === 0 ? 'Primary Reference Source' : `Redundant Footprint Match`}
-                            </span>
-                            <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '14px', marginTop: '2px' }}>
-                              {feat.feature_name} — <span style={{ color: 'var(--color-primary)' }}>{feat.app_name} ({feat.app_code})</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span className="badge badge-primary">{feat.app_code}</span>
+                            <div>
+                              <strong style={{ color: 'var(--text-main)', fontSize: '14px' }}>{feat.feature_name}</strong>
+                              <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '2px' }}>{feat.description}</p>
                             </div>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '4px' }}>{feat.feature_description}</p>
                           </div>
-                          
-                          {idx > 0 && (
-                            <span style={{ 
-                              color: 'var(--status-failed)', 
-                              fontWeight: 'bold', 
-                              fontSize: '13px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}>
-                              <TrendingUp size={14} />
-                              <span>{Math.round(feat.similarity_score * 100)}% match</span>
-                            </span>
-                          )}
+                          <span className="badge badge-success">
+                            {feat.similarity ? `${Math.round(feat.similarity * 100)}% Match` : 'Cluster Member'}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -339,37 +316,49 @@ export default function DnaCatalog() {
         )}
       </div>
 
-      {/* Inspect App Features Modal */}
+      {/* Inspect App Modal Drawer */}
       {activeModalApp && (
         <div className="modal-overlay" onClick={() => setActiveModalApp(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '680px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <AppWindow size={20} style={{ color: 'var(--color-primary)' }} />
-                <h3 style={{ fontSize: '18px' }}>{activeModalApp.app_name} ({activeModalApp.app_code})</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: 700 }}>{activeModalApp.app_name}</h3>
               </div>
-              <button onClick={() => setActiveModalApp(null)} className="toast-close">
-                <X size={18} />
+              <button onClick={() => setActiveModalApp(null)} className="btn-icon btn-icon-sm">
+                <X size={16} />
               </button>
             </div>
-            <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
-              <span className="badge badge-primary">{activeModalApp.platform}</span>
-              <span className="badge badge-secondary">Owner: {activeModalApp.owner}</span>
-            </div>
             
-            <h4 style={{ fontSize: '14px', marginBottom: '12px' }}>Registered Capabilities & Features ({activeModalApp.features.length})</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto' }}>
-              {activeModalApp.features.map((feat, idx) => (
-                <div key={idx} style={{ background: 'var(--bg-input)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-secondary)' }}>{feat.feature_name}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{feat.feature_description}</div>
+            <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+              <span className="badge badge-primary">{activeModalApp.app_code}</span>
+              <span className="badge badge-secondary">{activeModalApp.platform}</span>
+              <span className="badge badge-info">Owner: {activeModalApp.owner}</span>
+            </div>
+
+            <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.5' }}>
+              {activeModalApp.description}
+            </p>
+
+            <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px', color: 'var(--text-main)' }}>
+              Registered Application Features ({activeModalApp.features?.length || 0})
+            </h4>
+
+            <div style={{ maxHeight: '280px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {activeModalApp.features?.map((f, i) => (
+                <div key={i} className="card-subtle" style={{ padding: '12px 14px', background: 'var(--bg-input)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>{f.feature_name}</span>
+                    <span className="badge badge-secondary" style={{ fontSize: '10px' }}>{f.feature_code || `FEAT-${i+1}`}</span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{f.description}</p>
                 </div>
               ))}
             </div>
 
             <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={() => setActiveModalApp(null)} className="btn btn-secondary">
-                Close Inspector
+                Close
               </button>
             </div>
           </div>

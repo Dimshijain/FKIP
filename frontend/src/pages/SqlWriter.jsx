@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useToast } from '../components/ToastContext';
-import { SkeletonCard } from '../components/SkeletonLoader';
+import { SkeletonCard, SkeletonList } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import { 
   Terminal, 
@@ -140,7 +140,16 @@ export default function SqlWriter() {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
-    toast.success('Downloaded .sql file.');
+    toast.info('SQL file downloaded.');
+  };
+
+  const loadHistory = async () => {
+    try {
+      const historyData = await api.get('/sql/history');
+      setHistoryList(historyData || []);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const toggleTableExpand = (tableName) => {
@@ -151,7 +160,8 @@ export default function SqlWriter() {
   };
 
   const insertTableToPrompt = (tableName) => {
-    setPrompt(prev => prev ? `${prev} from table ${tableName}` : `SELECT data from ${tableName}`);
+    setPrompt(prev => `${prev} [Table: ${tableName}]`);
+    toast.info(`Appended ${tableName} to query prompt.`);
   };
 
   const loadHistoryItem = (item) => {
@@ -185,55 +195,27 @@ export default function SqlWriter() {
       </div>
 
       {/* Main Grid: Left Panel (Schema Explorer & History), Right Panel (SQL Studio Editor & Outputs) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '28px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 'var(--space-6)', alignItems: 'start' }}>
         
         {/* LEFT COLUMN: Tabs for Schema Explorer & Query History */}
-        <div className="card" style={{ padding: '20px', minHeight: '620px', display: 'flex', flexDirection: 'column' }}>
+        <div className="card" style={{ padding: 'var(--space-5)', minHeight: '620px', display: 'flex', flexDirection: 'column' }}>
           {/* Tab buttons */}
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '16px', gap: '8px' }}>
+          <div className="tab-nav" style={{ marginBottom: 'var(--space-4)' }}>
             <button
               onClick={() => setActiveTab('schema')}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                background: activeTab === 'schema' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                border: 'none',
-                borderBottom: activeTab === 'schema' ? '2px solid var(--color-primary)' : '2px solid transparent',
-                color: activeTab === 'schema' ? 'var(--text-main)' : 'var(--text-muted)',
-                fontWeight: 600,
-                fontSize: '13px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                borderRadius: '6px 6px 0 0'
-              }}
+              className={`tab-btn ${activeTab === 'schema' ? 'active' : ''}`}
+              style={{ flex: 1, justifyContent: 'center' }}
             >
-              <Database size={15} style={{ color: 'var(--color-primary)' }} />
+              <Database size={15} />
               <span>Schema ({schemaTree.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('history')}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                background: activeTab === 'history' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                border: 'none',
-                borderBottom: activeTab === 'history' ? '2px solid var(--color-primary)' : '2px solid transparent',
-                color: activeTab === 'history' ? 'var(--text-main)' : 'var(--text-muted)',
-                fontWeight: 600,
-                fontSize: '13px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                borderRadius: '6px 6px 0 0'
-              }}
+              className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
+              style={{ flex: 1, justifyContent: 'center' }}
             >
-              <History size={15} style={{ color: 'var(--color-secondary)' }} />
+              <History size={15} />
               <span>History ({historyList.length})</span>
             </button>
           </div>
@@ -241,15 +223,15 @@ export default function SqlWriter() {
           {/* TAB 1: SCHEMA EXPLORER TREE */}
           {activeTab === 'schema' && (
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-              <div style={{ position: 'relative', marginBottom: '16px' }}>
-                <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-dark)' }} />
+              <div className="search-input-group" style={{ marginBottom: 'var(--space-4)' }}>
+                <Search size={14} className="search-input-icon" />
                 <input 
                   type="text" 
                   value={searchSchema}
                   onChange={(e) => setSearchSchema(e.target.value)}
                   placeholder="Filter tables or columns..."
                   className="form-input"
-                  style={{ paddingLeft: '30px', fontSize: '12px' }}
+                  style={{ height: '36px', fontSize: '12px' }}
                 />
               </div>
 
@@ -264,12 +246,8 @@ export default function SqlWriter() {
                     return (
                       <div 
                         key={table.table_name} 
-                        style={{
-                          background: 'rgba(255,255,255,0.03)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '6px',
-                          overflow: 'hidden'
-                        }}
+                        className="card-subtle"
+                        style={{ padding: '0', overflow: 'hidden' }}
                       >
                         <div 
                           onClick={() => toggleTableExpand(table.table_name)}
@@ -277,9 +255,9 @@ export default function SqlWriter() {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            padding: '8px 10px',
+                            padding: '8px 12px',
                             cursor: 'pointer',
-                            background: isExpanded ? 'rgba(99, 102, 241, 0.08)' : 'transparent'
+                            background: isExpanded ? 'var(--color-primary-subtle)' : 'transparent'
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
@@ -294,15 +272,8 @@ export default function SqlWriter() {
                             type="button"
                             onClick={(e) => { e.stopPropagation(); insertTableToPrompt(table.table_name); }}
                             title="Add table name to prompt"
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: 'var(--color-secondary)',
-                              fontSize: '11px',
-                              cursor: 'pointer',
-                              padding: '2px 6px',
-                              borderRadius: '4px'
-                            }}
+                            className="btn-sm btn-secondary"
+                            style={{ height: '24px', padding: '0 6px', fontSize: '10px' }}
                           >
                             + Use
                           </button>
@@ -310,11 +281,11 @@ export default function SqlWriter() {
 
                         {/* Collapsible Columns */}
                         {isExpanded && (
-                          <div style={{ padding: '6px 12px 10px 24px', borderTop: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.2)' }}>
+                          <div style={{ padding: '6px 12px 10px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-input)' }}>
                             {table.columns.map((col, cIdx) => (
                               <div key={cIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0', color: 'var(--text-muted)' }}>
                                 <span>• {col.column_name}</span>
-                                <span style={{ color: '#818cf8', fontFamily: 'monospace', fontSize: '10px' }}>{col.data_type}</span>
+                                <span style={{ color: 'var(--color-secondary)', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>{col.data_type}</span>
                               </div>
                             ))}
                           </div>
@@ -339,19 +310,16 @@ export default function SqlWriter() {
                   <div
                     key={item.id}
                     onClick={() => loadHistoryItem(item)}
+                    className="card-subtle"
                     style={{
-                      padding: '10px',
-                      borderRadius: '6px',
-                      background: generatedResult?.id === item.id ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255,255,255,0.03)',
-                      border: generatedResult?.id === item.id ? '1px solid var(--color-primary)' : '1px solid var(--border-color)',
+                      padding: '10px 12px',
                       cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px'
+                      borderLeft: generatedResult?.id === item.id ? '3px solid var(--color-primary)' : '1px solid var(--border-color)',
+                      background: generatedResult?.id === item.id ? 'var(--color-primary-subtle)' : 'var(--card-subtle-bg)'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-primary)', background: 'rgba(99, 102, 241, 0.2)', padding: '1px 6px', borderRadius: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span className="badge badge-primary" style={{ fontSize: '10px', padding: '2px 6px' }}>
                         {item.dialect}
                       </span>
                       <span style={{ fontSize: '10px', color: 'var(--text-dark)' }}>
@@ -370,20 +338,20 @@ export default function SqlWriter() {
         </div>
 
         {/* RIGHT COLUMN: AI SQL Studio Editor & Output */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
 
           {/* Natural Language Prompt & Dialect Form */}
           <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                <Sparkles size={18} style={{ color: 'var(--color-primary)' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: '12px' }}>
+              <h3 className="section-title">
+                <Sparkles size={18} className="section-title-icon" />
                 <span>Natural Language Query Specification</span>
               </h3>
 
               {/* Dialect Selector */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>Target Dialect:</span>
-                <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', background: 'var(--bg-surface)', padding: '2px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                   <button
                     type="button"
                     onClick={() => setDialect('ORACLE')}
@@ -391,7 +359,7 @@ export default function SqlWriter() {
                       padding: '4px 10px',
                       fontSize: '11px',
                       fontWeight: 700,
-                      borderRadius: '4px',
+                      borderRadius: 'var(--radius-xs)',
                       border: 'none',
                       cursor: 'pointer',
                       background: dialect === 'ORACLE' ? 'var(--color-primary)' : 'transparent',
@@ -407,7 +375,7 @@ export default function SqlWriter() {
                       padding: '4px 10px',
                       fontSize: '11px',
                       fontWeight: 700,
-                      borderRadius: '4px',
+                      borderRadius: 'var(--radius-xs)',
                       border: 'none',
                       cursor: 'pointer',
                       background: dialect === 'POSTGRESQL' ? 'var(--color-secondary)' : 'transparent',
@@ -420,29 +388,18 @@ export default function SqlWriter() {
               </div>
             </div>
 
-            <div className="form-group" style={{ marginBottom: '16px' }}>
+            <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Describe your query requirement in plain English (e.g., Get top 10 users with active balance...)..."
-                className="form-input"
-                style={{ minHeight: '80px', fontSize: '13px', lineHeight: '1.5', padding: '12px' }}
+                className="form-textarea"
+                style={{ minHeight: '80px', fontSize: '13px', lineHeight: '1.5' }}
               />
             </div>
 
             {error && (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                background: 'rgba(239, 68, 68, 0.1)', 
-                color: 'var(--status-failed)', 
-                padding: '12px', 
-                borderRadius: '6px',
-                marginBottom: '16px',
-                fontSize: '13px',
-                border: '1px solid rgba(239, 68, 68, 0.2)'
-              }}>
+              <div className="alert-banner alert-banner-error">
                 <ShieldAlert size={16} />
                 <span>{error}</span>
               </div>
@@ -451,8 +408,8 @@ export default function SqlWriter() {
             <button
               onClick={handleGenerate}
               disabled={isGenerating || !prompt.trim()}
-              className="btn btn-primary btn-full"
-              style={{ gap: '8px', padding: '10px' }}
+              className="btn btn-primary"
+              style={{ width: '100%', gap: '8px' }}
             >
               {isGenerating ? (
                 <>
@@ -470,7 +427,7 @@ export default function SqlWriter() {
 
           {/* Generated SQL Code Editor Viewport */}
           {generatedResult && (
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               
               {/* Header Action Bar & Safety Guardrail Badge */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '14px' }}>
@@ -480,34 +437,12 @@ export default function SqlWriter() {
                   
                   {/* Safety Guardrail Status */}
                   {generatedResult.is_safe ? (
-                    <span style={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
-                      gap: '4px', 
-                      fontSize: '11px', 
-                      fontWeight: 700, 
-                      padding: '3px 8px', 
-                      borderRadius: '12px', 
-                      background: 'rgba(16, 185, 129, 0.15)', 
-                      color: 'var(--status-completed)',
-                      border: '1px solid rgba(16, 185, 129, 0.3)'
-                    }}>
+                    <span className="badge badge-success">
                       <ShieldCheck size={13} />
                       <span>Read-Only Verified</span>
                     </span>
                   ) : (
-                    <span style={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
-                      gap: '4px', 
-                      fontSize: '11px', 
-                      fontWeight: 700, 
-                      padding: '3px 8px', 
-                      borderRadius: '12px', 
-                      background: 'rgba(239, 68, 68, 0.15)', 
-                      color: 'var(--status-failed)',
-                      border: '1px solid rgba(239, 68, 68, 0.3)'
-                    }}>
+                    <span className="badge badge-danger">
                       <ShieldAlert size={13} />
                       <span>Safety Guardrail Warning</span>
                     </span>
@@ -519,8 +454,7 @@ export default function SqlWriter() {
                   <button
                     onClick={handleFormat}
                     disabled={isFormatting}
-                    className="btn btn-secondary"
-                    style={{ padding: '6px 12px', fontSize: '12px', gap: '6px' }}
+                    className="btn btn-secondary btn-sm"
                   >
                     {isFormatting ? <Loader2 size={13} className="animate-spin" /> : <Layers size={13} />}
                     <span>Format</span>
@@ -529,8 +463,7 @@ export default function SqlWriter() {
                   <button
                     onClick={handleExplain}
                     disabled={isExplaining}
-                    className="btn btn-secondary"
-                    style={{ padding: '6px 12px', fontSize: '12px', gap: '6px' }}
+                    className="btn btn-secondary btn-sm"
                   >
                     {isExplaining ? <Loader2 size={13} className="animate-spin" /> : <Cpu size={13} />}
                     <span>Explain Plan</span>
@@ -538,8 +471,7 @@ export default function SqlWriter() {
 
                   <button
                     onClick={handleCopy}
-                    className="btn btn-primary"
-                    style={{ padding: '6px 12px', fontSize: '12px', gap: '6px' }}
+                    className="btn btn-primary btn-sm"
                   >
                     {copied ? <Check size={13} /> : <Copy size={13} />}
                     <span>{copied ? 'Copied!' : 'Copy SQL'}</span>
@@ -547,8 +479,7 @@ export default function SqlWriter() {
 
                   <button
                     onClick={handleDownloadSql}
-                    className="btn btn-secondary"
-                    style={{ padding: '6px 12px', fontSize: '12px', gap: '6px' }}
+                    className="btn btn-secondary btn-sm"
                     title="Download .sql Script"
                   >
                     <Download size={13} />
@@ -559,17 +490,7 @@ export default function SqlWriter() {
 
               {/* Safety Warning Banner if non-select operations detected */}
               {generatedResult.safety_warning && (
-                <div style={{ 
-                  background: 'rgba(239, 68, 68, 0.12)', 
-                  border: '1px solid rgba(239, 68, 68, 0.3)', 
-                  padding: '10px 14px', 
-                  borderRadius: '6px', 
-                  fontSize: '12px', 
-                  color: 'var(--status-failed)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
+                <div className="alert-banner alert-banner-warning">
                   <ShieldAlert size={16} />
                   <span>{generatedResult.safety_warning}</span>
                 </div>
@@ -578,17 +499,17 @@ export default function SqlWriter() {
               {/* Styled Monospaced Code Viewport */}
               <div 
                 style={{ 
-                  background: '#0d1117', 
+                  background: 'var(--bg-input)', 
                   border: '1px solid var(--border-color)', 
-                  borderRadius: '8px', 
+                  borderRadius: 'var(--radius-md)', 
                   padding: '16px 20px', 
-                  fontFamily: 'monospace', 
+                  fontFamily: 'var(--font-mono)', 
                   fontSize: '13px', 
-                  color: '#f1f5f9', 
+                  color: 'var(--text-main)', 
                   lineHeight: '1.6', 
                   overflowX: 'auto',
                   whiteSpace: 'pre-wrap',
-                  boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.5)'
+                  boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.2)'
                 }}
               >
                 {generatedResult.generated_sql}
@@ -596,13 +517,8 @@ export default function SqlWriter() {
 
               {/* Technical Explanation Card */}
               {explanation && (
-                <div style={{ 
-                  background: 'rgba(99, 102, 241, 0.06)', 
-                  border: '1px solid rgba(99, 102, 241, 0.15)', 
-                  borderRadius: '8px', 
-                  padding: '14px 18px' 
-                }}>
-                  <span style={{ fontSize: '11px', textTransform: 'uppercase', tracking: '0.05em', color: 'var(--color-primary)', fontWeight: 700 }}>
+                <div className="card-subtle" style={{ padding: '14px 18px', borderLeft: '3px solid var(--color-primary)' }}>
+                  <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-primary)', fontWeight: 700 }}>
                     Execution Plan & Logic Breakdown
                   </span>
                   <p style={{ fontSize: '13px', color: 'var(--text-main)', margin: '6px 0 0 0', lineHeight: '1.6' }}>
@@ -617,13 +533,6 @@ export default function SqlWriter() {
         </div>
 
       </div>
-
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

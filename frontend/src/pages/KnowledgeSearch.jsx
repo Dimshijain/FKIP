@@ -52,46 +52,61 @@ export default function KnowledgeSearch() {
   });
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div>
       {/* Standardized Page Header */}
       <div className="page-header">
         <div className="page-title-group">
           <div className="page-title-row">
-            <h1 className="page-title">Knowledge Search Explorer</h1>
-            <span className="badge badge-secondary">Hybrid Vector RAG</span>
+            <h1 className="page-title">
+              <Search size={28} className="page-title-icon" />
+              <span>Knowledge Search Explorer</span>
+            </h1>
+            <span className="badge badge-primary">Hybrid Vector RAG</span>
           </div>
-          <p className="page-subtitle">Perform hybrid semantic search across indexed architecture specifications and converse with the RAG assistant.</p>
+          <p className="page-subtitle">
+            Perform hybrid semantic search across indexed architecture specifications and converse with the RAG assistant.
+          </p>
         </div>
       </div>
 
-      <div className="search-layout" style={{ flex: 1, minHeight: 0 }}>
+      <div 
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1.2fr 1fr', 
+          gap: 'var(--space-6)', 
+          height: 'calc(100vh - 210px)',
+          minHeight: '560px'
+        }}
+      >
         {/* Left Panel: Hybrid Search Engine */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, padding: '20px' }}>
-          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Compass size={20} style={{ color: 'var(--color-secondary)' }} />
-              <h2 style={{ fontSize: '18px' }}>Hybrid Search Engine</h2>
-            </div>
-            <span className="badge badge-primary">{filteredResults.length} Chunks</span>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, padding: 'var(--space-5)' }}>
+          <div className="section-header" style={{ marginBottom: 'var(--space-4)' }}>
+            <h2 className="section-title">
+              <Compass size={20} className="section-title-icon" />
+              <span>Hybrid Search Engine</span>
+            </h2>
+            <span className="badge badge-secondary">{filteredResults.length} Chunks</span>
           </div>
 
-          <form onSubmit={handleSearchSubmit} className="search-box" style={{ marginBottom: '16px' }}>
-            <input 
-              type="text" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search database design schemas, release notes, workflow steps..."
-              className="form-input"
-            />
-            <button type="submit" className="btn btn-primary" style={{ gap: '8px' }} disabled={isSearching}>
-              <Search size={16} />
+          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+            <div className="search-input-group" style={{ flex: 1 }}>
+              <Search size={16} className="search-input-icon" />
+              <input 
+                type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search database design schemas, release notes, workflow steps..."
+                className="form-input"
+              />
+            </div>
+            <button type="submit" className="btn btn-primary" disabled={isSearching}>
               <span>{isSearching ? 'Searching...' : 'Search'}</span>
             </button>
           </form>
 
           {/* Filter Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {tags.map(t => (
                 <button
                   key={t.id}
@@ -110,8 +125,8 @@ export default function KnowledgeSearch() {
               <select 
                 value={minScore} 
                 onChange={(e) => setMinScore(Number(e.target.value))}
-                className="pagination-select"
-                style={{ fontSize: '12px' }}
+                className="form-select"
+                style={{ height: '32px', fontSize: '12px', padding: '0 8px', width: 'auto' }}
               >
                 <option value={0.05}>0.05 (Broad)</option>
                 <option value={0.10}>0.10 (Standard)</option>
@@ -122,7 +137,7 @@ export default function KnowledgeSearch() {
           </div>
 
           {/* Search Results */}
-          <div className="search-results-list" style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {isSearching ? (
               <SkeletonCard count={3} />
             ) : filteredResults.length === 0 ? (
@@ -133,11 +148,11 @@ export default function KnowledgeSearch() {
               />
             ) : (
               filteredResults.map((result, idx) => (
-                <div key={idx} className="card result-item" style={{ padding: '16px', marginBottom: '12px', borderLeft: '4px solid var(--color-secondary)' }}>
-                  <div className="result-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div key={idx} className="card-subtle" style={{ padding: 'var(--space-4)', borderLeft: '4px solid var(--color-primary)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <FileText size={16} style={{ color: 'var(--color-secondary)' }} />
-                      <span className="result-filename" style={{ fontSize: '14px', fontWeight: 600 }}>{result.filename}</span>
+                      <FileText size={16} style={{ color: 'var(--color-primary)' }} />
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>{result.filename}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span className="badge badge-success">
@@ -145,23 +160,21 @@ export default function KnowledgeSearch() {
                       </span>
                       <button 
                         onClick={() => handleCopyChunk(idx, result.chunk_content)}
-                        className="pagination-btn"
-                        style={{ width: '28px', height: '28px' }}
+                        className="btn-icon btn-icon-sm"
                         title="Copy Snippet"
                       >
                         {copiedChunkId === idx ? <Check size={14} style={{ color: 'var(--status-completed)' }} /> : <Copy size={14} />}
                       </button>
                       <button 
                         onClick={() => setActiveModalChunk(result)}
-                        className="pagination-btn"
-                        style={{ width: '28px', height: '28px' }}
+                        className="btn-icon btn-icon-sm"
                         title="Inspect Full Chunk"
                       >
                         <ExternalLink size={14} />
                       </button>
                     </div>
                   </div>
-                  <p className="result-content" style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: '1.6' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
                     {result.chunk_content}
                   </p>
                 </div>
@@ -182,18 +195,18 @@ export default function KnowledgeSearch() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FileText size={20} style={{ color: 'var(--color-secondary)' }} />
-                <h3 style={{ fontSize: '18px' }}>{activeModalChunk.filename}</h3>
+                <FileText size={20} style={{ color: 'var(--color-primary)' }} />
+                <h3 style={{ fontSize: '18px', fontWeight: 700 }}>{activeModalChunk.filename}</h3>
               </div>
-              <button onClick={() => setActiveModalChunk(null)} className="toast-close">
-                <X size={18} />
+              <button onClick={() => setActiveModalChunk(null)} className="btn-icon btn-icon-sm">
+                <X size={16} />
               </button>
             </div>
-            <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ marginBottom: '16px', display: 'flex', gap: '10px', alignItems: 'center' }}>
               <span className="badge badge-success">Score: {activeModalChunk.score.toFixed(4)}</span>
               <span className="badge badge-primary">Chunk ID: {activeModalChunk.chunk_id}</span>
             </div>
-            <div style={{ background: 'var(--bg-input)', padding: '16px', borderRadius: '8px', fontSize: '13px', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '350px', overflowY: 'auto' }}>
+            <div style={{ background: 'var(--bg-input)', padding: '16px', borderRadius: 'var(--radius-md)', fontSize: '13px', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '350px', overflowY: 'auto', border: '1px solid var(--border-color)' }}>
               {activeModalChunk.chunk_content}
             </div>
             <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>

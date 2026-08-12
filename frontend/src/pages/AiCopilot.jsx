@@ -321,34 +321,54 @@ export default function AiCopilot() {
   const activeModelObj = availableModels.find(m => m.id === selectedModel) || availableModels[0];
 
   return (
-    <div 
-      className="copilot-container"
-      style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '260px 1fr 300px', 
-        height: 'calc(100vh - 80px)', 
-        maxHeight: 'calc(100vh - 80px)', 
-        gap: '20px', 
-        overflow: 'hidden' 
-      }}
-    >
-      
-      {/* 1. Sidebar Session List */}
+    <div>
+      {/* Standardized Page Header */}
+      <div className="page-header" style={{ marginBottom: 'var(--space-5)' }}>
+        <div className="page-title-group">
+          <div className="page-title-row">
+            <h1 className="page-title">
+              <Brain size={28} className="page-title-icon" />
+              <span>AI Copilot</span>
+            </h1>
+            <span className="badge badge-primary">SSE Stream</span>
+            <span className="badge badge-secondary">{activeModelObj?.name || selectedModel}</span>
+          </div>
+          <p className="page-subtitle">
+            Context-aware AI technical assistant for architecture audits, Oracle dependencies, and real-time ledger intelligence.
+          </p>
+        </div>
+      </div>
+
       <div 
-        className="card copilot-sessions-panel" 
+        className="copilot-container"
         style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          height: '100%', 
-          minHeight: 0,
-          padding: '16px', 
+          display: 'grid', 
+          gridTemplateColumns: '260px 1fr 300px', 
+          height: 'calc(100vh - 210px)', 
+          maxHeight: 'calc(100vh - 210px)', 
+          gap: 'var(--space-5)', 
           overflow: 'hidden' 
         }}
       >
-        <h3 style={{ fontSize: '16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <MessageSquare size={16} />
-          <span>Audit Sessions</span>
-        </h3>
+        
+        {/* 1. Sidebar Session List */}
+        <div 
+          className="card copilot-sessions-panel" 
+          style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            height: '100%', 
+            minHeight: 0,
+            padding: 'var(--space-4)', 
+            overflow: 'hidden' 
+          }}
+        >
+          <div className="section-header" style={{ marginBottom: 'var(--space-3)' }}>
+            <h3 className="section-title" style={{ fontSize: '15px' }}>
+              <MessageSquare size={16} className="section-title-icon" />
+              <span>Audit Sessions</span>
+            </h3>
+          </div>
         
         {/* Create new chat input */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexShrink: 0 }}>
@@ -828,13 +848,7 @@ export default function AiCopilot() {
           )}
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
+  </div>
   );
 }

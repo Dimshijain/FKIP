@@ -44,6 +44,9 @@ backend/uploads/*
 *.log
 *.tmp
 *.temp
+*.db
+*.sqlite
+*.sqlite3
 
 # IDEs & System Files
 .idea/
