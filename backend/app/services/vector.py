@@ -10,10 +10,7 @@ logger = logging.getLogger(__name__)
 import time
 import socket
 
-def is_host_reachable(host, port, timeout=0.05):
-    # Fast path: skip docker-internal hostnames when running locally without docker network
-    if host in ["fkip-weaviate", "weaviate"]:
-        return False
+def is_host_reachable(host, port, timeout=0.5):
     try:
         s = socket.create_connection((host, port), timeout=timeout)
         s.close()

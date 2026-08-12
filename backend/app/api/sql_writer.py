@@ -112,13 +112,17 @@ async def generate_sql_query(
     explanation = ""
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=8.0) as client:
             res = await client.post(
                 f"{settings.OLLAMA_URL}/api/generate",
                 json={
                     "model": "qwen2:0.5b",
                     "prompt": prompt,
-                    "stream": False
+                    "stream": False,
+                    "options": {
+                        "num_predict": 120,
+                        "temperature": 0.1
+                    }
                 }
             )
             if res.status_code == 200:
@@ -142,28 +146,91 @@ async def generate_sql_query(
     except Exception as e:
         logger.warning(f"Ollama SQL generation call timed out or failed: {str(e)}")
 
-    # 4. Fallback if LLM failed or generated empty SQL
-    if not generated_sql:
-        if dialect == "ORACLE":
-            generated_sql = (
-                "SELECT u.id, u.email, u.role, o.object_name, o.object_type\n"
-                "FROM users u\n"
-                "LEFT JOIN oracle_metadata o ON o.owner = 'FKIP_ADMIN'\n"
-                "WHERE u.role = 'ADMIN'\n"
-                "ORDER BY u.created_at DESC\n"
-                "FETCH FIRST 50 ROWS ONLY;"
-            )
-            explanation = "Oracle SQL query selecting active admin users and associated Oracle metadata schema objects using FETCH FIRST 50 ROWS ONLY."
+    # 4. Context-Aware Fallback if LLM timed out or generated non-conforming SQL
+    if not generated_sql or not (generated_sql.upper().strip().startswith("SELECT") or generated_sql.upper().strip().startswith("WITH")):
+        p_lower = req.prompt.lower()
+        if "employee" in p_lower or "salary" in p_lower or "department" in p_lower:
+            if dialect == "ORACLE":
+                generated_sql = (
+                    "SELECT d.department_name, COUNT(e.id) AS employee_count, AVG(e.salary) AS avg_salary\n"
+                    "FROM departments d\n"
+                    "LEFT JOIN employees e ON e.department_id = d.id\n"
+                    "GROUP BY d.department_name\n"
+                    "ORDER BY avg_salary DESC\n"
+                    "FETCH FIRST 10 ROWS ONLY;"
+                )
+                explanation = "Oracle SQL query aggregating employee headcounts and average salaries per department using FETCH FIRST 10 ROWS ONLY."
+            else:
+                generated_sql = (
+                    "SELECT d.department_name, COUNT(e.id) AS employee_count, AVG(e.salary) AS avg_salary\n"
+                    "FROM departments d\n"
+                    "LEFT JOIN employees e ON e.department_id = d.id\n"
+                    "GROUP BY d.department_name\n"
+                    "ORDER BY avg_salary DESC\n"
+                    "LIMIT 10;"
+                )
+                explanation = "PostgreSQL query aggregating employees by department with LIMIT 10."
+        elif "audit" in p_lower or "change" in p_lower or "log" in p_lower:
+            if dialect == "ORACLE":
+                generated_sql = (
+                    "SELECT log_id, employee_id, action_type, changed_by, change_timestamp\n"
+                    "FROM log_employee_changes\n"
+                    "WHERE change_timestamp >= SYSDATE - 30\n"
+                    "ORDER BY change_timestamp DESC\n"
+                    "FETCH FIRST 10 ROWS ONLY;"
+                )
+                explanation = "Oracle query retrieving recent employee audit logs using SYSDATE and FETCH FIRST 10 ROWS ONLY."
+            else:
+                generated_sql = (
+                    "SELECT log_id, employee_id, action_type, changed_by, change_timestamp\n"
+                    "FROM log_employee_changes\n"
+                    "WHERE change_timestamp >= NOW() - INTERVAL '30 days'\n"
+                    "ORDER BY change_timestamp DESC\n"
+                    "LIMIT 10;"
+                )
+                explanation = "PostgreSQL query retrieving audit logs from the past 30 days."
+        elif "opportunity" in p_lower or "status" in p_lower:
+            if dialect == "ORACLE":
+                generated_sql = (
+                    "SELECT status, priority, COUNT(id) AS total_opportunities\n"
+                    "FROM opportunities\n"
+                    "GROUP BY status, priority\n"
+                    "HAVING COUNT(id) > 1\n"
+                    "ORDER BY total_opportunities DESC\n"
+                    "FETCH FIRST 20 ROWS ONLY;"
+                )
+                explanation = "Oracle query grouping innovation opportunities by status and priority with HAVING clause."
+            else:
+                generated_sql = (
+                    "SELECT status, priority, COUNT(id) AS total_opportunities\n"
+                    "FROM opportunities\n"
+                    "GROUP BY status, priority\n"
+                    "HAVING COUNT(id) > 1\n"
+                    "ORDER BY total_opportunities DESC\n"
+                    "LIMIT 20;"
+                )
+                explanation = "PostgreSQL query grouping opportunities with HAVING count > 1."
         else:
-            generated_sql = (
-                "SELECT u.id, u.email, u.role, d.filename, d.file_type\n"
-                "FROM users u\n"
-                "LEFT JOIN documents d ON d.author = u.email\n"
-                "WHERE u.role IN ('ADMIN', 'CREATOR')\n"
-                "ORDER BY u.created_at DESC\n"
-                "LIMIT 50;"
-            )
-            explanation = "PostgreSQL query retrieving users and their uploaded documents with LIMIT 50 pagination."
+            if dialect == "ORACLE":
+                generated_sql = (
+                    "SELECT u.id, u.email, u.role, o.object_name, o.object_type\n"
+                    "FROM users u\n"
+                    "LEFT JOIN oracle_metadata o ON o.owner = 'FKIP_ADMIN'\n"
+                    "WHERE u.role = 'ADMIN'\n"
+                    "ORDER BY u.created_at DESC\n"
+                    "FETCH FIRST 50 ROWS ONLY;"
+                )
+                explanation = "Oracle SQL query selecting active admin users and associated Oracle metadata schema objects using FETCH FIRST 50 ROWS ONLY."
+            else:
+                generated_sql = (
+                    "SELECT u.id, u.email, u.role, d.filename, d.file_type\n"
+                    "FROM users u\n"
+                    "LEFT JOIN documents d ON d.author = u.email\n"
+                    "WHERE u.role IN ('ADMIN', 'CREATOR')\n"
+                    "ORDER BY u.created_at DESC\n"
+                    "LIMIT 50;"
+                )
+                explanation = "PostgreSQL query retrieving users and their uploaded documents with LIMIT 50 pagination."
 
     formatted_sql = format_sql_query(generated_sql)
     is_safe, safety_warning = validate_sql_safety(formatted_sql)
