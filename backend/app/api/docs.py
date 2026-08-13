@@ -7,7 +7,7 @@ from typing import List
 
 from app.db.session import get_db
 from app.db.models import User, UserRole, GeneratedDocument, Document, OracleMetadata, DnaApplication, Opportunity
-from app.db.schemas import GeneratedDocumentCreate, GeneratedDocumentResponse
+from app.db.schemas import GeneratedDocumentCreate, GeneratedDocumentResponse, CustomDocumentCreate, DocumentUpdateRequest
 from app.api.auth import get_current_user
 from app.services.vector import vector_service
 from app.config import settings
@@ -436,6 +436,49 @@ def get_generated_document_detail(
     doc = db.query(GeneratedDocument).filter(GeneratedDocument.id == id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Generated document not found")
+    return doc
+
+@router.post("/custom", response_model=GeneratedDocumentResponse, status_code=status.HTTP_201_CREATED)
+def create_custom_generated_document(
+    req: CustomDocumentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Save custom synthesized technical design or SQL documentation."""
+    doc_entry = GeneratedDocument(
+        doc_type=req.doc_type or "TECH_DESIGN",
+        title=req.title,
+        content=req.content,
+        author=current_user.email
+    )
+    db.add(doc_entry)
+    db.commit()
+    db.refresh(doc_entry)
+    return doc_entry
+
+@router.put("/{id}", response_model=GeneratedDocumentResponse)
+def update_generated_document(
+    id: UUID,
+    req: DocumentUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Safely update or append new content sections to an existing technical document."""
+    doc = db.query(GeneratedDocument).filter(GeneratedDocument.id == id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Generated document not found")
+
+    if req.title:
+        doc.title = req.title
+
+    if req.append_content:
+        # Safely append new section preserving existing content
+        doc.content = doc.content.rstrip() + "\n\n" + req.append_content.strip()
+    elif req.content:
+        doc.content = req.content
+
+    db.commit()
+    db.refresh(doc)
     return doc
 
 @router.delete("/{id}", status_code=status.HTTP_200_OK)

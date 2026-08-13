@@ -286,6 +286,16 @@ class GeneratedDocumentCreate(BaseModel):
     doc_type: str # "BRD", "SRS", "TECH_DESIGN", "API_DOCS", "RELEASE_NOTES", "USER_MANUAL"
     title: str
 
+class CustomDocumentCreate(BaseModel):
+    doc_type: Optional[str] = "TECH_DESIGN"
+    title: str
+    content: str
+
+class DocumentUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    append_content: Optional[str] = None
+
 class GeneratedDocumentResponse(BaseModel):
     id: UUID
     doc_type: str
@@ -344,10 +354,48 @@ class SqlGenerateResponse(BaseModel):
     explanation: str
     is_safe: bool
     safety_warning: Optional[str] = None
+    row_count: Optional[int] = None
+    execution_time_ms: Optional[float] = None
+    executed_at: Optional[datetime] = None
+    execution_status: Optional[str] = "UNEXECUTED"
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+class SqlExecuteRequest(BaseModel):
+    sql: str
+    dialect: Optional[str] = "ORACLE"
+    prompt: Optional[str] = None
+    history_id: Optional[Union[UUID, str]] = None
+
+class SqlExecuteResponse(BaseModel):
+    success: bool
+    columns: List[str] = []
+    rows: List[dict] = []
+    row_count: int = 0
+    execution_time_ms: float = 0.0
+    is_safe: bool = True
+    error: Optional[str] = None
+    history_id: Optional[UUID] = None
+    executed_at: datetime
+
+class SqlDocGenerateRequest(BaseModel):
+    sql: str
+    dialect: str = "ORACLE"
+    prompt: Optional[str] = None
+    explanation: Optional[str] = None
+    columns: Optional[List[str]] = []
+    row_count: Optional[int] = 0
+    execution_time_ms: Optional[float] = 0.0
+    doc_type: Optional[str] = "TECH_DESIGN"
+    sample_rows: Optional[List[dict]] = None
+
+class SqlDocGenerateResponse(BaseModel):
+    title: str
+    doc_type: str
+    content: str
+    metadata: dict
 
 class SqlFormatRequest(BaseModel):
     sql: str
@@ -376,4 +424,5 @@ class SqlSchemaTable(BaseModel):
 
 class SqlSchemaTreeResponse(BaseModel):
     tables: List[SqlSchemaTable]
+
 

@@ -232,7 +232,12 @@ class SqlGenerationHistory(Base):
     generated_sql = Column(Text, nullable=False)
     explanation = Column(Text, nullable=True)
     is_safe = Column(Boolean, default=True)
+    row_count = Column(Integer, nullable=True)
+    execution_time_ms = Column(Numeric(10, 2), nullable=True)
+    executed_at = Column(DateTime(timezone=True), nullable=True)
+    execution_status = Column(String(50), nullable=True, default="UNEXECUTED")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User")
+
 
