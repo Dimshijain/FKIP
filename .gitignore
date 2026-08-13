@@ -51,6 +51,8 @@ backend/uploads/*
 # IDEs & System Files
 .idea/
 .vscode/
+.vs/
+.pytest_cache/
 *.swp
 *.swo
 .DS_Store
