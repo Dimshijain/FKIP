@@ -167,12 +167,28 @@ export default function SqlWriter() {
     try {
       const res = await api.post('/sql/format', {
         sql: generatedResult.generated_sql,
-        dialect: dialect
+        dialect: generatedResult.dialect || dialect
       });
-      setGeneratedResult(prev => ({ ...prev, generated_sql: res.formatted_sql }));
-      toast.success('SQL query formatted cleanly.');
+      const previousSql = (generatedResult.generated_sql || '').trim();
+      const formattedSql = typeof res?.formatted_sql === 'string' ? res.formatted_sql.trim() : '';
+
+      // Do not replace the generated query unless the formatter returned a usable value.
+      // This keeps Copy, Download, Explain, and Run Query working with the original SQL
+      // if the API ever returns an unexpected response.
+      if (!formattedSql) {
+        throw new Error('The SQL formatter returned an empty result.');
+      }
+
+      setGeneratedResult(prev => ({ ...prev, generated_sql: formattedSql }));
+
+      if (previousSql === formattedSql) {
+        toast.info('SQL is already properly formatted.');
+      } else {
+        toast.success('SQL formatted successfully.');
+      }
     } catch (err) {
-      toast.error('Format execution failed.');
+      console.error('Format failed:', err);
+      toast.error(err.message || 'Failed to format SQL query. Please try again.');
     } finally {
       setIsFormatting(false);
     }
@@ -676,9 +692,20 @@ export default function SqlWriter() {
                     onClick={handleFormat}
                     disabled={isFormatting}
                     className="btn btn-secondary btn-sm"
+                    style={{ minWidth: '95px' }}
+                    title="Format and beautify SQL keywords and indentation"
                   >
-                    {isFormatting ? <Loader2 size={13} className="animate-spin" /> : <Layers size={13} />}
-                    <span>Format</span>
+                    {isFormatting ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                        <span>Formatting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Layers size={13} />
+                        <span>Format</span>
+                      </>
+                    )}
                   </button>
 
                   <button

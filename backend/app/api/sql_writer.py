@@ -50,14 +50,90 @@ def validate_sql_safety(sql: str) -> tuple[bool, Optional[str]]:
         
     return True, None
 
-def format_sql_query(sql_text: str) -> str:
-    """Format and beautify SQL keywords and indentation."""
-    keywords = ["SELECT", "FROM", "WHERE", "GROUP BY", "ORDER BY", "HAVING", "JOIN", "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "ON", "AND", "OR", "LIMIT", "WITH", "AS"]
-    formatted = sql_text.strip()
-    for kw in keywords:
-        pattern = re.compile(r'\b' + kw + r'\b', re.IGNORECASE)
+def format_sql_query(sql_text: str, dialect: str = "ORACLE") -> str:
+    """Format and beautify SQL keywords, clause indentation, and line breaks cleanly."""
+    if not sql_text or not sql_text.strip():
+        return ""
+
+    raw = sql_text.strip()
+    
+    # 1. Standardize uppercase for key SQL keywords
+    keywords = [
+        "SELECT", "DISTINCT", "FROM", "WHERE", "GROUP BY", "HAVING", "ORDER BY",
+        "LEFT JOIN", "RIGHT JOIN", "FULL OUTER JOIN", "INNER JOIN", "CROSS JOIN", "JOIN",
+        "ON", "AND", "OR", "LIMIT", "OFFSET", "FETCH FIRST", "ROWS ONLY", "WITH",
+        "UNION ALL", "UNION", "AS", "CASE", "WHEN", "THEN", "ELSE", "END",
+        "BETWEEN", "IN", "EXISTS", "NOT IN", "NOT EXISTS", "NOT",
+        "IS NULL", "IS NOT NULL", "LIKE", "ILIKE", "DESC", "ASC",
+        "COUNT", "SUM", "AVG", "MIN", "MAX", "COALESCE", "NVL", "TO_DATE", "TO_CHAR",
+        "CURRENT_TIMESTAMP", "CURRENT_DATE", "SYSDATE", "ROWNUM"
+    ]
+    
+    keywords_sorted = sorted(keywords, key=len, reverse=True)
+    formatted = raw
+    for kw in keywords_sorted:
+        pattern = re.compile(r'\b' + re.escape(kw) + r'\b', re.IGNORECASE)
         formatted = pattern.sub(kw, formatted)
-    return formatted
+
+    # 2. Break major clauses onto dedicated new lines
+    major_clauses = ["WITH", "SELECT", "FROM", "WHERE", "GROUP BY", "HAVING", "ORDER BY", "FETCH FIRST", "LIMIT"]
+    for clause in major_clauses:
+        pattern = re.compile(r'\s*\b(' + clause + r')\b\s*', re.IGNORECASE)
+        formatted = pattern.sub(r'\n\1 ', formatted)
+
+    # Joins in a single unified regex matching multi-word first
+    def _clean_join_match(m):
+        clause_text = " ".join(m.group(1).split()).upper()
+        return "\n  " + clause_text + " "
+
+    formatted = re.sub(
+        r'\s*\b(LEFT\s+JOIN|RIGHT\s+JOIN|FULL\s+OUTER\s+JOIN|INNER\s+JOIN|CROSS\s+JOIN|JOIN)\b\s*',
+        _clean_join_match,
+        formatted,
+        flags=re.IGNORECASE
+    )
+
+    # AND / OR conditions under WHERE
+    formatted = re.sub(r'\s*\b(AND|OR)\b\s*', r'\n  \1 ', formatted)
+
+    lines = [line.rstrip() for line in formatted.split('\n') if line.strip()]
+    final_lines = []
+    in_select = False
+    
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        first_token = stripped.split()[0].upper()
+        if first_token in ["SELECT", "WITH"]:
+            in_select = True
+            cols_part = stripped[len(first_token):].strip()
+            final_lines.append(first_token)
+            if cols_part:
+                col_tokens = re.split(r',\s*(?![^()]*\))', cols_part)
+                for idx, col in enumerate(col_tokens):
+                    clean_col = col.strip().rstrip(',')
+                    if clean_col:
+                        suffix = "," if idx < len(col_tokens) - 1 else ""
+                        final_lines.append(f"  {clean_col}{suffix}")
+        elif first_token in ["FROM", "WHERE", "GROUP", "ORDER", "HAVING", "LIMIT", "FETCH"]:
+            in_select = False
+            final_lines.append(stripped)
+        elif stripped.startswith(("LEFT JOIN", "RIGHT JOIN", "FULL OUTER JOIN", "INNER JOIN", "CROSS JOIN", "JOIN")):
+            in_select = False
+            final_lines.append(f"  {stripped}")
+        elif stripped.startswith(("AND ", "OR ")):
+            final_lines.append(f"  {stripped}")
+        else:
+            if in_select and not stripped.startswith("  "):
+                final_lines.append(f"  {stripped}")
+            else:
+                final_lines.append(stripped)
+                
+    result = "\n".join(final_lines)
+    if not result.endswith(';') and raw.endswith(';'):
+        result += ';'
+    return result
 
 @router.post("/generate", response_model=SqlGenerateResponse, status_code=status.HTTP_201_CREATED)
 async def generate_sql_query(
@@ -312,7 +388,7 @@ def get_sql_schema_tree(
 
 @router.post("/format", response_model=SqlFormatResponse)
 def format_sql(req: SqlFormatRequest):
-    formatted = format_sql_query(req.sql)
+    formatted = format_sql_query(req.sql, req.dialect or "ORACLE")
     return SqlFormatResponse(formatted_sql=formatted)
 
 @router.post("/explain", response_model=SqlExplainResponse)
