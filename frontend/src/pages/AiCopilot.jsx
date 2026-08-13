@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { api } from '../services/api';
+import { api, getAuthToken } from '../services/api';
 import { useToast } from '../components/ToastContext';
 import { SkeletonBox } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
@@ -221,60 +221,68 @@ export default function AiCopilot() {
         created_at: new Date().toISOString()
       }]);
 
-      const token = localStorage.getItem('token');
+      const token = getAuthToken() || localStorage.getItem('fkip_token');
       const response = await fetch('/api/copilot/chat/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
-          conversation_id: activeConvId,
+          conversation_id: activeConvId || null,
           message: text,
           model: selectedModel
         })
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errDetail = `HTTP error! status: ${response.status}`;
+        try {
+          const errJson = await response.json();
+          if (errJson.detail) errDetail = errJson.detail;
+        } catch (_) {}
+        throw new Error(errDetail);
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedText = '';
+      let buffer = '';
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
         
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep partial line in buffer
         
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.substring(6));
-              if (data.token) {
-                accumulatedText += data.token;
-                setMessages(prev => prev.map(m => m.id === asstMsgId ? { ...m, content: accumulatedText } : m));
-              }
-              if (data.done) {
-                if (data.conversation_id && !activeConvId) {
-                  setActiveConvId(data.conversation_id);
-                }
-                if (data.full_text) {
-                  setMessages(prev => prev.map(m => m.id === asstMsgId ? { ...m, content: data.full_text } : m));
-                }
-                if (data.suggestions && data.suggestions.length > 0) {
-                  setSuggestions(data.suggestions);
-                }
-                if (data.recommendations && data.recommendations.length > 0) {
-                  setRecommendations(data.recommendations);
-                }
-              }
-            } catch (e) {
-              // ignore partial chunk parse error
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(trimmed.substring(6));
+            if (data.token) {
+              accumulatedText += data.token;
+              setMessages(prev => prev.map(m => m.id === asstMsgId ? { ...m, content: accumulatedText } : m));
             }
+            if (data.done) {
+              if (data.conversation_id && !activeConvId) {
+                setActiveConvId(data.conversation_id);
+              }
+              if (data.full_text) {
+                accumulatedText = data.full_text;
+                setMessages(prev => prev.map(m => m.id === asstMsgId ? { ...m, content: data.full_text } : m));
+              }
+              if (data.suggestions && data.suggestions.length > 0) {
+                setSuggestions(data.suggestions);
+              }
+              if (data.recommendations && data.recommendations.length > 0) {
+                setRecommendations(data.recommendations);
+              }
+            }
+          } catch (e) {
+            // ignore partial chunk parse error
           }
         }
       }
@@ -283,7 +291,7 @@ export default function AiCopilot() {
       console.warn("Stream error encountered, executing fallback chat request...", err);
       try {
         const fallbackRes = await api.post('/copilot/chat', {
-          conversation_id: activeConvId,
+          conversation_id: activeConvId || null,
           message: text,
           model: selectedModel
         });
@@ -312,12 +320,24 @@ export default function AiCopilot() {
       } catch (fallbackErr) {
         console.error("Both stream and standard chat endpoints failed", fallbackErr);
       }
+
+      let errorDisplay = "Error communicating with AI Copilot service. Please verify server connectivity and try again.";
+      if (err.message) {
+        if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+          errorDisplay = "Session expired or unauthorized. Please re-login to continue.";
+        } else if (err.message.includes('404')) {
+          errorDisplay = "Selected AI model or session endpoint was not found.";
+        } else if (err.message.includes('504') || err.message.includes('timeout')) {
+          errorDisplay = "Model inference timed out. The local Ollama server took too long to respond.";
+        }
+      }
+
       setMessages(prev => {
         const filtered = prev.filter(m => !m.id.startsWith('asst-') || m.content !== '');
         return [...filtered, {
           id: Math.random().toString(),
           role: 'assistant',
-          content: "Error communicating with AI Copilot service. Please verify server connectivity and try again.",
+          content: errorDisplay,
           created_at: new Date().toISOString()
         }];
       });
