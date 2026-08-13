@@ -215,14 +215,18 @@ async def copilot_chat(
     start_time = time.time()
 
     # 1. Resolve active conversation
+    conv = None
     if req.conversation_id:
-        conv = db.query(CopilotConversation).filter(
-            CopilotConversation.id == req.conversation_id,
-            CopilotConversation.user_id == current_user.id
-        ).first()
-        if not conv:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-    else:
+        try:
+            conv_uuid = UUID(str(req.conversation_id))
+            conv = db.query(CopilotConversation).filter(
+                CopilotConversation.id == conv_uuid,
+                CopilotConversation.user_id == current_user.id
+            ).first()
+        except Exception:
+            conv = None
+
+    if not conv:
         # Create default conversation with title derived from user question
         title = req.message[:40] + ("..." if len(req.message) > 40 else "")
         conv = CopilotConversation(user_id=current_user.id, title=title)
@@ -451,14 +455,18 @@ async def chat_copilot_stream(
     current_user: User = Depends(get_current_user)
 ):
     """Stream real AI Copilot tokens from Ollama via Server-Sent Events (SSE)."""
+    conv = None
     if req.conversation_id:
-        conv = db.query(CopilotConversation).filter(
-            CopilotConversation.id == req.conversation_id,
-            CopilotConversation.user_id == current_user.id
-        ).first()
-        if not conv:
-            raise HTTPException(status_code=404, detail="Conversation session not found")
-    else:
+        try:
+            conv_uuid = UUID(str(req.conversation_id))
+            conv = db.query(CopilotConversation).filter(
+                CopilotConversation.id == conv_uuid,
+                CopilotConversation.user_id == current_user.id
+            ).first()
+        except Exception:
+            conv = None
+
+    if not conv:
         title = req.message[:35] + ("..." if len(req.message) > 35 else "")
         conv = CopilotConversation(user_id=current_user.id, title=title)
         db.add(conv)

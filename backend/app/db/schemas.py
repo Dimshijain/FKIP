@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime
 from uuid import UUID
 from app.db.models import UserRole, IngestionStatus, OpportunitySource, OpportunityMetric, OpportunityPriority, OpportunityStatus
@@ -268,7 +268,7 @@ class CopilotConversationResponse(BaseModel):
         from_attributes = True
 
 class CopilotChatRequest(BaseModel):
-    conversation_id: Optional[UUID] = None
+    conversation_id: Optional[Union[UUID, str]] = None
     message: str
     document_id: Optional[str] = None
     model: Optional[str] = "qwen2:0.5b"
