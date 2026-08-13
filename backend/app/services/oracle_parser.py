@@ -155,27 +155,53 @@ def get_impacted_objects(object_id: str, db: Session, max_depth: int = 5) -> lis
     queue = [(object_id, 0, "DIRECT")]  # (current_id, depth, dependency_type)
     
     # Map for easy metadata resolution
-    metadata_cache = {m.id: m for m in db.query(OracleMetadata).all()}
+    all_metadata = db.query(OracleMetadata).all()
+    metadata_cache = {str(m.id): m for m in all_metadata}
+    known_object_names = {m.object_name.upper() for m in all_metadata}
     
     while queue:
         curr_id, depth, d_type = queue.pop(0)
+        curr_id_str = str(curr_id)
         
-        if curr_id in visited:
+        if curr_id_str in visited:
             continue
             
-        if curr_id != object_id:
-            visited.add(curr_id)
-            obj = metadata_cache.get(curr_id)
+        if curr_id_str != str(object_id):
+            visited.add(curr_id_str)
+            obj = metadata_cache.get(curr_id_str)
             if obj:
+                # Determine reference validity and risk level based on actual schema metadata
+                is_valid = True
+                status = "VALID_REFERENCE"
+                status_label = "Valid reference"
+                risk_level = "LOW" if depth > 1 else "MEDIUM"
+                
+                # Check for broken references (e.g. foreign keys to tables not present in schema)
+                if obj.schema_definition:
+                    definition = obj.schema_definition.upper()
+                    fk_matches = re.findall(r'REFERENCES\s+(?:(\w+)\.)?(\w+)', definition, re.IGNORECASE)
+                    for fk in fk_matches:
+                        ref_table = fk[1].upper()
+                        if ref_table not in known_object_names:
+                            is_valid = False
+                            status = "BROKEN_REFERENCE"
+                            status_label = "Broken reference risk"
+                            risk_level = "HIGH"
+                            break
+
                 impacted.append({
                     "id": obj.id,
                     "object_name": obj.object_name,
                     "object_type": obj.object_type.value,
                     "dep_type": d_type,
-                    "depth": depth
+                    "depth": depth,
+                    "status": status,
+                    "status_label": status_label,
+                    "risk_level": risk_level,
+                    "is_broken": not is_valid
                 })
         else:
-            visited.add(curr_id)
+            visited.add(curr_id_str)
             
         if depth >= max_depth:
             continue
@@ -186,3 +212,4 @@ def get_impacted_objects(object_id: str, db: Session, max_depth: int = 5) -> lis
             queue.append((dep.source_object_id, depth + 1, dep.dep_type.value))
             
     return sorted(impacted, key=lambda x: (x["depth"], x["object_type"], x["object_name"]))
+

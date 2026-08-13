@@ -108,12 +108,13 @@ export default function OracleIntelligence() {
   const triggerImpactAnalysis = async (obj) => {
     setSelectedObject(obj);
     try {
-      const results = await api.get(`/oracle/impact-analysis?object_id=${obj.id}`);
+      const results = await api.get(`/oracle/impact-analysis?object_id=${obj.id}`, { useCache: false });
       setImpactResults(results || []);
       setActiveTab('impact');
       toast.info(`Traced impact for ${obj.object_name}.`);
     } catch (err) {
       console.error("Impact analysis failed", err);
+      toast.error("Failed to execute impact analysis.");
     }
   };
 
@@ -405,37 +406,57 @@ export default function OracleIntelligence() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {impactResults.map((item) => (
-                      <div key={item.id} className="card-subtle" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <span style={{ 
-                            width: '26px', 
-                            height: '26px', 
-                            borderRadius: '50%', 
-                            background: 'rgba(239, 68, 68, 0.12)', 
-                            color: 'var(--status-failed)', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            fontSize: '12px',
-                            fontWeight: 700
-                          }}>
-                            {item.depth}
-                          </span>
-                          <div>
-                            <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '15px' }}>{item.object_name}</span>
-                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                              Type: {item.object_type} | Cause: {item.dep_type}
+                    {impactResults.map((item) => {
+                      const isBroken = item.is_broken || item.status === 'BROKEN_REFERENCE';
+                      const statusText = item.status_label || (isBroken ? 'Broken reference risk' : 'Valid reference');
+
+                      return (
+                        <div key={item.id} className="card-subtle" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ 
+                              width: '28px', 
+                              height: '28px', 
+                              borderRadius: '50%', 
+                              background: isBroken ? 'rgba(239, 68, 68, 0.12)' : 'var(--color-primary-subtle)', 
+                              color: isBroken ? 'var(--status-failed)' : 'var(--color-primary)', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              fontSize: '12px',
+                              fontWeight: 700
+                            }}>
+                              {item.depth}
+                            </span>
+                            <div>
+                              <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '15px' }}>{item.object_name}</span>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span>Type: <strong>{item.object_type}</strong></span>
+                                <span>•</span>
+                                <span>Cause: <strong>{item.dep_type}</strong></span>
+                                {item.risk_level && (
+                                  <>
+                                    <span>•</span>
+                                    <span>Risk: <span style={{ color: isBroken ? 'var(--status-failed)' : 'var(--text-muted)', fontWeight: 600 }}>{item.risk_level}</span></span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--status-failed)', fontSize: '13px', fontWeight: 600 }}>
-                          <AlertTriangle size={15} />
-                          <span>Broken reference risk</span>
+                          {isBroken ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--status-failed)', fontSize: '13px', fontWeight: 600 }}>
+                              <AlertTriangle size={15} />
+                              <span>{statusText}</span>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--status-completed)', fontSize: '13px', fontWeight: 600 }}>
+                              <CheckCircle2 size={15} />
+                              <span>{statusText}</span>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

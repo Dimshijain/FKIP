@@ -153,6 +153,11 @@ class ImpactAnalysisItem(BaseModel):
     object_type: str
     dep_type: str
     depth: int
+    status: Optional[str] = "VALID_REFERENCE"
+    status_label: Optional[str] = "Valid reference"
+    risk_level: Optional[str] = "LOW"
+    is_broken: Optional[bool] = False
+
 
 # --- CORE BANKING SCHEMAS ---
 class DnaAppFeatureBase(BaseModel):
