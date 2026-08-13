@@ -213,6 +213,14 @@ export default function AiCopilot() {
     setSuggestions([]);
     
     try {
+      const asstMsgId = 'asst-' + Date.now();
+      setMessages(prev => [...prev, {
+        id: asstMsgId,
+        role: 'assistant',
+        content: '',
+        created_at: new Date().toISOString()
+      }]);
+
       const token = localStorage.getItem('token');
       const response = await fetch('/api/copilot/chat/stream', {
         method: 'POST',
@@ -230,14 +238,6 @@ export default function AiCopilot() {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      const asstMsgId = 'asst-' + Date.now();
-      setMessages(prev => [...prev, {
-        id: asstMsgId,
-        role: 'assistant',
-        content: '',
-        created_at: new Date().toISOString()
-      }]);
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -265,6 +265,12 @@ export default function AiCopilot() {
                 if (data.full_text) {
                   setMessages(prev => prev.map(m => m.id === asstMsgId ? { ...m, content: data.full_text } : m));
                 }
+                if (data.suggestions && data.suggestions.length > 0) {
+                  setSuggestions(data.suggestions);
+                }
+                if (data.recommendations && data.recommendations.length > 0) {
+                  setRecommendations(data.recommendations);
+                }
               }
             } catch (e) {
               // ignore partial chunk parse error
@@ -274,13 +280,47 @@ export default function AiCopilot() {
       }
       loadConversations();
     } catch (err) {
-      console.error("Failed to send chat message via stream", err);
-      setMessages(prev => [...prev, {
-        id: Math.random().toString(),
-        role: 'assistant',
-        content: "Error communicating with AI Copilot streaming service. Please try again.",
-        created_at: new Date().toISOString()
-      }]);
+      console.warn("Stream error encountered, executing fallback chat request...", err);
+      try {
+        const fallbackRes = await api.post('/copilot/chat', {
+          conversation_id: activeConvId,
+          message: text,
+          model: selectedModel
+        });
+        if (fallbackRes && fallbackRes.response) {
+          if (fallbackRes.conversation_id && !activeConvId) {
+            setActiveConvId(fallbackRes.conversation_id);
+          }
+          setMessages(prev => {
+            const filtered = prev.filter(m => !m.id.startsWith('asst-') || m.content !== '');
+            return [...filtered, {
+              id: fallbackRes.message_id || ('asst-' + Date.now()),
+              role: 'assistant',
+              content: fallbackRes.response,
+              created_at: new Date().toISOString()
+            }];
+          });
+          if (fallbackRes.suggestions && fallbackRes.suggestions.length > 0) {
+            setSuggestions(fallbackRes.suggestions);
+          }
+          if (fallbackRes.recommendations && fallbackRes.recommendations.length > 0) {
+            setRecommendations(fallbackRes.recommendations);
+          }
+          loadConversations();
+          return;
+        }
+      } catch (fallbackErr) {
+        console.error("Both stream and standard chat endpoints failed", fallbackErr);
+      }
+      setMessages(prev => {
+        const filtered = prev.filter(m => !m.id.startsWith('asst-') || m.content !== '');
+        return [...filtered, {
+          id: Math.random().toString(),
+          role: 'assistant',
+          content: "Error communicating with AI Copilot service. Please verify server connectivity and try again.",
+          created_at: new Date().toISOString()
+        }];
+      });
     } finally {
       setIsSending(false);
     }
