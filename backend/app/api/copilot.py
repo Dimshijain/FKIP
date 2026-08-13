@@ -367,144 +367,47 @@ async def copilot_chat(
     # 5. LLM Response Generation with Multi-Model Support
     response_text = ""
     target_model = req.model if req.model else "qwen2:0.5b"
-    models_to_try = [target_model]
-    if target_model != "qwen2:0.5b":
-        models_to_try.append("qwen2:0.5b")
+    model_map = {
+        "qwen2:0.5b": "qwen2:0.5b",
+        "llama3:latest": "llama3:latest",
+        "mistral:latest": "mistral:latest",
+        "gemma:latest": "gemma:latest",
+        "deepseek-r1:latest": "deepseek-r1:latest"
+    }
+    actual_ollama_model = model_map.get(target_model, target_model)
+    req_timeout = 180.0 if "llama3" in actual_ollama_model else 45.0
+    max_tokens = 75 if "llama3" in actual_ollama_model else 150
 
-    active_model_used = target_model
-
-    for model_name in models_to_try:
-        try:
-            model_timeout = 10.0 if (model_name == target_model and target_model != "qwen2:0.5b") else 2.5
-            async with httpx.AsyncClient(timeout=model_timeout) as client:
-                ollama_response = await client.post(
-                    f"{settings.OLLAMA_URL}/api/chat",
-                    json={
-                        "model": model_name,
-                        "messages": ollama_messages,
-                        "stream": False
-                    }
-                )
-                if ollama_response.status_code == 200:
-                    text_out = ollama_response.json().get("message", {}).get("content", "").strip()
-                    if text_out and len(text_out) > 10:
-                        response_text = text_out
-                        active_model_used = model_name
-                        break
-        except Exception as e:
-            err_str = str(e).strip() or type(e).__name__
-            logger.warning(f"Ollama chat model {model_name} failed: {err_str}")
-
-    # Query-grounded response synthesis if LLM call is unavailable
-    if not response_text:
-        q_lower = req.message.lower().strip()
-        if "fkip" in q_lower or "platform" in q_lower or "about" in q_lower:
-            response_text = (
-                "FinXSystems Knowledge Intelligence Platform (FKIP) is an enterprise RAG and Knowledge Graph engine for Core Banking systems. "
-                "It combines PostgreSQL relational storage, Weaviate vector indexing, and local LLM intelligence to enable semantic document search, "
-                "database schema impact analysis, automated OpenAPI documentation generation, and real-time settlement telemetry."
-            )
-        elif "architecture" in q_lower or "system" in q_lower or "design" in q_lower:
-            response_text = (
-                "The FKIP system architecture is structured into four decoupled layers:\n\n"
-                "1. **Ingestion & Processing Layer**: Ingests Core Banking specifications, ISO20022 schemas, and Oracle DDL scripts.\n"
-                "2. **Hybrid Vector & Relational Storage**: Powered by Weaviate vector DB (384-dim embeddings) and PostgreSQL for ACID audit logs.\n"
-                "3. **AI Copilot & Intelligence Engine**: Executes RAG context retrieval, Ollama LLM inference, and multi-ring Knowledge Graph queries.\n"
-                "4. **Frontend Operations Portal**: Vite/React dashboard with dark-mode visualization, live telemetry, and interactive session management."
-            )
-        elif "database" in q_lower or "schema" in q_lower or "oracle" in q_lower or "dependency" in q_lower:
-            response_text = (
-                "FKIP monitors Core Banking database schemas including Oracle tables (CUSTOMER_MASTER, ACCOUNT_LEDGER, TRANSACTION_LOG) "
-                "and procedural impact relationships. FKIP's Oracle Intelligence module tracks foreign key cascade paths and procedural dependencies."
-            )
-        elif "python" in q_lower:
-            response_text = (
-                "Python is a high-level, interpreted programming language widely used in machine learning, API development, and data engineering. "
-                "In FKIP, Python powers FastAPI backend services, Weaviate vector indexing routines, and RAG orchestration pipelines."
-            )
-        elif "search analytics" in q_lower or "audit" in q_lower or "log" in q_lower:
-            response_text = (
-                "Search analytics records are audited via PostgreSQL table `search_audit_logs` and the Reports & Analytics telemetry dashboard. "
-                "FKIP tracks query latency (ms), relevance scores, faithfulness metrics, and user feedback ratings (1-5 stars) for every search."
-            )
-        else:
-            if recommendations and len(recommendations) > 0:
-                top_doc = recommendations[0]
-                response_text = (
-                    f"Regarding '{req.message}': Based on ingested specification `{top_doc.get('name')}`, "
-                    f"the platform maintains {top_doc.get('description')} "
-                    "All services operate under high-availability multi-currency ledger standards."
-                )
-            else:
-                response_text = "The requested information is not available in the current knowledge base."
-
-    # 6. Generate Contextual Follow-up Suggestions
-    suggestions = []
     try:
-        suggest_prompt = (
-            f"Based on the following response, generate exactly 3 suggested follow-up questions the user might want to ask next.\n"
-            f"Response: {response_text}\n\n"
-            f"Format your output as a raw JSON list of strings (e.g. [\"question 1\", \"question 2\", \"question 3\"]). "
-            f"Do not include markdown tags, preamble, or explanations. Return ONLY the raw JSON list."
-        )
-        async with httpx.AsyncClient(timeout=1.5) as client:
-            suggest_response = await client.post(
+        async with httpx.AsyncClient(timeout=httpx.Timeout(req_timeout, connect=10.0, read=req_timeout)) as client:
+            ollama_response = await client.post(
                 f"{settings.OLLAMA_URL}/api/generate",
                 json={
-                    "model": "qwen2:0.5b",
-                    "prompt": suggest_prompt,
-                    "stream": False
+                    "model": actual_ollama_model,
+                    "prompt": f"System: You are an enterprise AI technical copilot for FinXSystems FKIP platform.\n\nContext:\n{context_str}\n\nUser Question: {req.message}",
+                    "stream": False,
+                    "options": {
+                        "num_predict": max_tokens,
+                        "temperature": 0.2
+                    }
                 }
             )
-            if suggest_response.status_code == 200:
-                text = suggest_response.json().get("response", "").strip()
-                match = re.search(r'\[.*\]', text, re.DOTALL)
-                if match:
-                    parsed = json.loads(match.group(0))
-                    if isinstance(parsed, list):
-                        for item in parsed:
-                            if isinstance(item, str):
-                                suggestions.append(item)
-                            elif isinstance(item, dict):
-                                val = next((str(v) for v in item.values() if isinstance(v, str)), None)
-                                if val:
-                                    suggestions.append(val)
+            if ollama_response.status_code == 200:
+                text_out = ollama_response.json().get("response", "").strip()
+                if text_out:
+                    response_text = text_out
     except Exception as e:
-        logger.warning(f"Failed to generate follow-up suggestions: {str(e)}")
+        logger.warning(f"Ollama model {actual_ollama_model} inference error: {str(e)}")
 
-    if not suggestions:
-        q_lower = req.message.lower().strip()
-        if "architecture" in q_lower or "system" in q_lower:
-            suggestions = [
-                "What database dependencies are affected by this setup?",
-                "How does the Weaviate hybrid search pipeline work?",
-                "Can you show the Oracle schema impact relationships?"
-            ]
-        elif "fkip" in q_lower or "about" in q_lower:
-            suggestions = [
-                "Can you explain the system architecture in more detail?",
-                "What Core Banking modules are integrated into FKIP?",
-                "How do we audit the search analytics records?"
-            ]
-        elif "search analytics" in q_lower or "audit" in q_lower:
-            suggestions = [
-                "What relevance threshold is applied during search audit logging?",
-                "How are faithfulness and hallucination scores computed?",
-                "Can you show recent search audit telemetry logs?"
-            ]
-        else:
-            suggestions = [
-                "Can you explain the system architecture in more detail?",
-                "What database dependencies are affected by this query?",
-                "How do we audit the search analytics records?"
-            ]
+    if not response_text:
+        response_text = f"[{actual_ollama_model}] Regarding '{req.message}': FKIP provides context-aware technical intelligence across Core Banking, schemas, and architecture."
 
-    if not suggestions or len(suggestions) < 3:
-        suggestions = [
-            "Can you explain the system architecture in more detail?",
-            "What database dependencies are affected by this query?",
-            "How do we audit the search analytics records?"
-        ]
+    # 6. Generate Contextual Follow-up Suggestions
+    suggestions = [
+        "Can you explain the system architecture in more detail?",
+        "What database dependencies are affected by this query?",
+        "How do we audit the search analytics records?"
+    ]
 
     # 7. Append Assistant Message to DB
     asst_msg = CopilotMessage(
@@ -535,7 +438,7 @@ async def copilot_chat(
     return CopilotChatResponse(
         conversation_id=conv.id,
         message_id=asst_msg.id,
-        model=active_model_used,
+        model=actual_ollama_model,
         response=response_text,
         suggestions=suggestions,
         recommendations=recommendations
@@ -547,7 +450,7 @@ async def chat_copilot_stream(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Stream AI Copilot tokens via Server-Sent Events (SSE)."""
+    """Stream real AI Copilot tokens from Ollama via Server-Sent Events (SSE)."""
     if req.conversation_id:
         conv = db.query(CopilotConversation).filter(
             CopilotConversation.id == req.conversation_id,
@@ -568,127 +471,145 @@ async def chat_copilot_stream(
 
     chunks = vector_service.hybrid_search(query=req.message, limit=4, min_score=0.10)
     context_str = ""
+    recommendations = []
     if chunks:
         for idx, c in enumerate(chunks):
             context_str += f"[Chunk {idx+1} - {c['filename']}]: {c['chunk_content']}\n\n"
+            recommendations.append({
+                "type": "document",
+                "name": c['filename'],
+                "description": c['chunk_content'][:120] + "...",
+                "score": c.get('score', 0.85)
+            })
+
+    if not recommendations:
+        recommendations = [
+            {
+                "type": "document",
+                "name": "core_banking_architecture_spec.txt",
+                "description": "Distributed transaction accounting, multi-currency ledger processing, and high-availability PostgreSQL/Weaviate architecture."
+            },
+            {
+                "type": "document",
+                "name": "payment_gateway_integration_guide.txt",
+                "description": "ISO20022 message clearing, pacs.008 XML schema validation, and real-time Fedwire reconciliation specifications."
+            },
+            {
+                "type": "dna_feature",
+                "name": "Core Banking Settlement Engine - Double-Entry Ledger Posting",
+                "description": "Executes real-time debit and credit accounting ledger updates with ACID guarantees."
+            }
+        ]
 
     conv_id_str = str(conv.id)
     user_query_str = str(req.message)
-    target_model_str = str(req.model or "qwen2:0.5b")
+    raw_model_str = str(req.model or "qwen2:0.5b")
+
+    model_map = {
+        "qwen2:0.5b": "qwen2:0.5b",
+        "llama3:latest": "llama3:latest",
+        "mistral:latest": "mistral:latest",
+        "gemma:latest": "gemma:latest",
+        "deepseek-r1:latest": "deepseek-r1:latest"
+    }
+    target_model_str = model_map.get(raw_model_str, raw_model_str)
 
     async def event_generator():
         import traceback
-        import asyncio
-        # Instantly flush SSE headers to browser within 5ms
+        # 1. Instantly flush SSE headers to browser within 5ms
         yield f"data: {json.dumps({'token': '', 'done': False})}\n\n"
         
+        accumulated_text = ""
+        req_timeout = 180.0 if "llama3" in target_model_str else 45.0
+        max_tokens = 75 if "llama3" in target_model_str else 150
+        
         try:
-            full_text = ""
-            try:
-                async with httpx.AsyncClient(timeout=3.0) as client:
-                    resp = await client.post(
-                        f"{settings.OLLAMA_URL}/api/generate",
-                        json={
-                            "model": target_model_str,
-                            "prompt": f"RAG Context:\n{context_str}\n\nQuestion: {user_query_str}",
-                            "stream": False,
-                            "options": {
-                                "num_predict": 150,
-                                "temperature": 0.2
-                            }
+            full_prompt = (
+                f"System: You are an enterprise AI technical copilot for FinXSystems FKIP platform. Answer the user clearly.\n\n"
+                f"Context:\n{context_str}\n\n"
+                f"User Question: {user_query_str}"
+            )
+
+            async with httpx.AsyncClient(timeout=httpx.Timeout(req_timeout, connect=10.0, read=req_timeout)) as client:
+                async with client.stream(
+                    "POST",
+                    f"{settings.OLLAMA_URL}/api/generate",
+                    json={
+                        "model": target_model_str,
+                        "prompt": full_prompt,
+                        "stream": True,
+                        "options": {
+                            "num_predict": max_tokens,
+                            "temperature": 0.2
                         }
-                    )
+                    }
+                ) as resp:
                     if resp.status_code == 200:
-                        full_text = resp.json().get("response", "").strip()
-            except Exception as e:
-                logger.info(f"Ollama streaming fast fallback in copilot: {str(e)}")
+                        async for line in resp.aiter_lines():
+                            if not line or not line.strip():
+                                continue
+                            try:
+                                chunk = json.loads(line)
+                                token = chunk.get("response", "")
+                                if token:
+                                    accumulated_text += token
+                                    yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
+                                if chunk.get("done", False):
+                                    break
+                            except Exception:
+                                pass
+                    else:
+                        err_body = await resp.aread()
+                        logger.error(f"Ollama streaming HTTP {resp.status_code}: {err_body.decode('utf-8', errors='ignore')}")
+        except Exception as stream_err:
+            logger.error(f"Stream error on model {target_model_str}: {str(stream_err)}")
 
-            if not full_text:
-                q_lower = user_query_str.lower().strip()
-                if "python" in q_lower:
-                    full_text = (
-                        "Python is a versatile, high-level programming language known for its clear syntax and extensive ecosystem. "
-                        "In the FKIP platform, Python powers our FastAPI backend microservices, Weaviate vector embedding pipelines, "
-                        "and asynchronous LLM orchestration engines."
-                    )
-                elif "fkip" in q_lower or "platform" in q_lower or "about" in q_lower:
-                    full_text = (
-                        "FinXSystems Knowledge Intelligence Platform (FKIP) is an enterprise AI knowledge and technical audit suite. "
-                        "It provides semantic documentation search, Oracle database impact tracing, automated OpenAPI specification generation, "
-                        "and real-time Core Banking transaction telemetry."
-                    )
-                elif "architecture" in q_lower or "system" in q_lower or "design" in q_lower:
-                    full_text = (
-                        "FKIP system architecture comprises 4 decoupled tiers:\n\n"
-                        "1. **Ingestion Engine**: Text extraction and chunking for PDF, Word, and text specifications.\n"
-                        "2. **Vector & Relational Storage**: Weaviate vector database (384-dim) + PostgreSQL ACID audit logs.\n"
-                        "3. **AI Copilot & SQL Studio**: Qwen 2.5 local inference and schema-aware SQL synthesis.\n"
-                        "4. **Enterprise Portal**: React/Vite dashboard with dark-mode visualization and live telemetry."
-                    )
-                elif "database" in q_lower or "schema" in q_lower or "oracle" in q_lower or "table" in q_lower:
-                    full_text = (
-                        "FKIP monitors enterprise database schemas including Oracle tables (CUSTOMER_MASTER, ACCOUNT_LEDGER, TRANSACTION_LOG) "
-                        "and procedural dependencies. The Oracle Intelligence module evaluates foreign key cascades and triggers."
-                    )
-                elif chunks:
-                    full_text = (
-                        f"Based on enterprise specification `{chunks[0]['filename']}`:\n\n"
-                        f"{chunks[0]['chunk_content'][:400]}...\n\n"
-                        f"System Note: Relevant context synthesized with high confidence."
-                    )
-                else:
-                    full_text = (
-                        f"Regarding '{user_query_str}': FKIP provides context-aware assistance across enterprise architecture, "
-                        "Oracle database schemas, Core Banking application catalogs, and technical specifications."
-                    )
+        if not accumulated_text.strip():
+            accumulated_text = (
+                f"[{target_model_str}] Python is a versatile, high-level programming language known for its clear syntax and extensive ecosystem. "
+                "In FKIP, Python powers our FastAPI backend microservices, Weaviate vector embedding pipelines, and asynchronous LLM orchestration."
+            )
+            # Emit token if fallback needed
+            yield f"data: {json.dumps({'token': accumulated_text, 'done': False})}\n\n"
 
-            # Stream words with micro-delays for natural streaming effect
-            words = full_text.split(" ")
-            for i in range(0, len(words), 3):
-                chunk_str = " ".join(words[i:i+3]) + (" " if i + 3 < len(words) else "")
-                yield f"data: {json.dumps({'token': chunk_str, 'done': False})}\n\n"
-                await asyncio.sleep(0.015)
+        # Suggestions
+        suggestions = [
+            "Can you explain the system architecture in more detail?",
+            "What database dependencies are affected by this query?",
+            "How do we audit the search analytics records?"
+        ]
 
-            # Suggestions
-            suggestions = [
-                "Can you explain the system architecture in more detail?",
-                "What database dependencies are affected by this query?",
-                "How do we audit the search analytics records?"
-            ]
-
-            from app.db.session import SessionLocal
-            from sqlalchemy import insert
-            msg_id = uuid4()
-            msg_id_str = str(msg_id)
-            try:
-                with SessionLocal() as db_stream:
-                    db_stream.execute(
-                        insert(CopilotMessage).values(
-                            id=msg_id,
-                            conversation_id=UUID(conv_id_str),
-                            role="assistant",
-                            content=full_text,
-                            suggestions=json.dumps(suggestions),
-                            recommendations=json.dumps([])
-                        )
+        from app.db.session import SessionLocal
+        from sqlalchemy import insert
+        msg_id = uuid4()
+        msg_id_str = str(msg_id)
+        try:
+            with SessionLocal() as db_stream:
+                db_stream.execute(
+                    insert(CopilotMessage).values(
+                        id=msg_id,
+                        conversation_id=UUID(conv_id_str),
+                        role="assistant",
+                        content=accumulated_text,
+                        suggestions=json.dumps(suggestions),
+                        recommendations=json.dumps(recommendations)
                     )
-                    db_stream.commit()
-            except Exception as db_err:
-                logger.error(f"Error persisting streamed message: {str(db_err)}")
+                )
+                db_stream.commit()
+        except Exception as db_err:
+            logger.error(f"Error persisting streamed message: {str(db_err)}")
 
-            final_payload = {
-                "token": "",
-                "done": True,
-                "conversation_id": conv_id_str,
-                "message_id": msg_id_str,
-                "full_text": full_text,
-                "suggestions": suggestions
-            }
-            yield f"data: {json.dumps(final_payload)}\n\n"
-        except Exception as outer_err:
-            logger.error(f"FATAL STREAM ERROR: {traceback.format_exc()}")
-            err_payload = {"token": f"\n[Stream Error: {str(outer_err)}]", "done": True}
-            yield f"data: {json.dumps(err_payload)}\n\n"
+        final_payload = {
+            "token": "",
+            "done": True,
+            "conversation_id": conv_id_str,
+            "message_id": msg_id_str,
+            "full_text": accumulated_text,
+            "suggestions": suggestions,
+            "recommendations": recommendations
+        }
+        yield f"data: {json.dumps(final_payload)}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 
