@@ -23,7 +23,8 @@ import {
   ArrowUpRight,
   ShieldCheck,
   Server,
-  ArrowRight
+  ArrowRight,
+  Clock
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -31,34 +32,57 @@ export default function Dashboard() {
   const [execData, setExecData] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const userRole = getUserRole() || 'CONSUMER';
   const toast = useToast();
 
-  const loadDashboardData = async (showToast = false) => {
+  const loadDashboardData = async (silent = false) => {
     try {
       const [docs, exec] = await Promise.all([
-        api.getDocuments(),
-        api.get('/reports/executive')
+        api.getDocuments({ useCache: false }),
+        api.get('/reports/executive', { useCache: false })
       ]);
       setDocuments(docs || []);
       setExecData(exec);
-      if (showToast) {
-        toast.success('Executive dashboard metrics refreshed.');
-      }
+      setLastRefreshed(new Date());
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to fetch dashboard metrics.');
+      console.error('Failed to load initial dashboard metrics:', err);
+      if (!silent) {
+        toast.error('Failed to fetch dashboard metrics.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleRefreshTelemetry = async () => {
+    if (isRefreshing) return; // Prevent duplicate requests
+    setIsRefreshing(true);
+    try {
+      api.clearCache();
+      const [docs, exec] = await Promise.all([
+        api.getDocuments({ useCache: false }),
+        api.get('/reports/executive?refresh=true', { useCache: false })
+      ]);
+      setDocuments(docs || []);
+      setExecData(exec);
+      setLastRefreshed(new Date());
+      toast.success('Telemetry refreshed successfully');
+    } catch (err) {
+      console.error('Telemetry refresh failed:', err);
+      toast.error('Unable to refresh telemetry. Please try again.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    loadDashboardData();
-    const interval = setInterval(() => loadDashboardData(false), 20000);
+    loadDashboardData(true);
+    const interval = setInterval(() => loadDashboardData(true), 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -75,7 +99,7 @@ export default function Dashboard() {
     try {
       await api.uploadDocument(file);
       toast.success(`File "${file.name}" uploaded successfully. Processing started.`);
-      loadDashboardData();
+      loadDashboardData(true);
     } catch (err) {
       toast.error(err.message || 'File upload failed.');
     } finally {
@@ -112,10 +136,38 @@ export default function Dashboard() {
             Real-time telemetry, knowledge registry growth, and system architecture status across enterprise instances.
           </p>
         </div>
-        <div className="page-actions">
-          <button onClick={() => loadDashboardData(true)} className="btn btn-secondary">
-            <RefreshCw size={16} />
-            <span>Refresh Telemetry</span>
+        <div className="page-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {lastRefreshed && (
+            <span style={{ 
+              fontSize: '11px', 
+              color: 'var(--text-muted)', 
+              fontWeight: 500,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <Clock size={12} style={{ opacity: 0.7 }} />
+              <span>Last refreshed: {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            </span>
+          )}
+          <button 
+            onClick={handleRefreshTelemetry} 
+            disabled={isRefreshing}
+            className="btn btn-secondary"
+            style={{ minWidth: '160px', gap: '8px' }}
+            title="Refresh live telemetry, knowledge registry metrics, and system status"
+          >
+            {isRefreshing ? (
+              <>
+                <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                <span>Refreshing...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw size={16} />
+                <span>Refresh Telemetry</span>
+              </>
+            )}
           </button>
         </div>
       </div>

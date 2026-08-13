@@ -105,13 +105,15 @@ from app.services.cache import cache_service
 
 @router.get("/executive")
 def get_executive_dashboard(
+    refresh: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     cache_key = f"reports:executive:{current_user.id}"
-    cached = cache_service.get(cache_key)
-    if cached:
-        return cached
+    if not refresh:
+        cached = cache_service.get(cache_key)
+        if cached:
+            return cached
     from app.db.models import DocumentChunk, OracleMetadata, DnaApplication, DnaAppFeature, Opportunity
     from app.services.vector import vector_service
     import httpx
