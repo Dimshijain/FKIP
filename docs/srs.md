@@ -6,140 +6,143 @@
 ## 1. Introduction
 
 ### 1.1 Purpose
-This document specifies the software requirements for the **FinXSystems Knowledge Intelligence Platform (FKIP)**. FKIP is a secure, private, enterprise-grade AI-powered platform designed to centralize and synthesize knowledge across scattered documents, Oracle metadata, and 400+ internal Core Banking applications. It provides intelligent search capabilities, metadata dependency mapping, and automated innovation pipeline generation.
+This document specifies the software requirements for the **FinXSystems Knowledge Intelligence Platform (FKIP)**. FKIP is a secure, private, enterprise-grade AI-powered platform designed to centralize and synthesize knowledge across scattered documents, Oracle metadata, and 400+ internal Core Banking applications. It provides intelligent search capabilities, metadata dependency mapping, an AI SQL Writer with safe execution guardrails, multi-model AI Copilot assistance, and automated innovation pipeline generation.
 
 ### 1.2 Scope
-FKIP is built to eliminate information silos, reduce manual research overhead, and establish a continuous innovation pipeline for FinXSystems. The system integrates:
-1.  **An Ingestion Pipeline** for unstructured documents (PDF, DOCX, TXT), release notes, user guides, screenshots, and workflows.
-2.  **An Oracle Intelligence Engine** to parse DB schemas, analyze relationships/dependencies, and calculate the downstream impact of modifications.
-3.  **A Core Banking Application Intelligence Engine** to analyze and categorize 400+ internal software assets, identifying functional gaps and overlapping features.
-4.  **An Innovation Discovery Engine** to auto-detect automation opportunities and market gaps, generating structured ideas prioritized by business value and complexity.
-5.  **A RAG-Powered Knowledge Assistant** utilizing hybrid search (dense semantic vectors + sparse keyword search) and a private LLM environment.
+FKIP eliminates information silos, reduces manual research overhead, and establishes a continuous innovation pipeline for FinXSystems. The system integrates:
+1. **Document Ingestion & Chunking Pipeline**: Supports unstructured documents (PDF, DOCX, TXT), background chunking, and dual storage across PostgreSQL and Weaviate.
+2. **Hybrid Semantic Search & RAG Assistant**: Combines dense vector similarity and sparse lexical keyword search with strict citations and user feedback ratings.
+3. **Multi-Model AI Copilot**: Orchestrates inference across 5 local LLMs (Qwen 2.5, Llama 3.1, Mistral, Gemma 2B, DeepSeek R1) with Server-Sent Events (SSE) token streaming and persistent conversation sessions.
+4. **AI SQL Writer & Guardrailed Execution**: Generates SQL for Oracle and PostgreSQL dialects from plain English prompts, provides SQL formatting and explain plans, safely executes read-only queries with strict DDL/DML mutation blocking, generates technical specifications, and exports results to CSV.
+5. **Oracle Database Intelligence Engine**: Parses SQL DDL schemas, builds relational dependency graphs (Foreign Keys, Views, Triggers), and simulates change impact with valid reference vs broken reference risk indicators.
+6. **Core Banking DNA Catalog**: Catalogs 400+ internal software assets, extracts features, performs semantic capability clustering, and matches new feature descriptions against the existing portfolio.
+7. **Innovation Opportunities Pipeline**: Analyzes architectural gaps and maintains an active product opportunity backlog with business value, complexity, and priority scoring.
+8. **Relational Knowledge Graph**: Visualizes cross-entity connections between documents, Oracle objects, Core Banking applications, and innovation opportunities.
+9. **Technical Document Generator**: Synthesizes 6 enterprise documentation templates (BRD, SRS, Tech Design, API Docs, Release Notes, User Manual), allows custom document creation, and safely appends sections while preserving prior content.
+10. **Executive Telemetry & Admin Console**: Real-time KPI dashboards with Redis cache invalidation, search latency trends, user role management, and container health monitoring.
 
 ### 1.3 Definitions, Acronyms, and Abbreviations
-*   **RAG**: Retrieval-Augmented Generation.
-*   **Core Banking Application**: Internal FinXSystems applications (comprising over 400 distinct tools/platforms).
-*   **OCR**: Optical Character Recognition.
-*   **Vector DB**: Database optimized for storing and querying multi-dimensional vector embeddings (Weaviate).
-*   **Ollama**: Local, private framework for running LLMs on-premise.
-*   **Hybrid Search**: Combination of keyword-based BM25 search and dense vector semantic search.
-*   **SRS**: Software Requirements Specification.
-*   **RBAC**: Role-Based Access Control.
-
-### 1.4 References
-*   IEEE Std 830-1998, IEEE Recommended Practice for Software Requirements Specifications.
-*   FKIP Solution Architecture Blueprint.
-*   FinXSystems Data Security & Governance Standard.
+* **RAG**: Retrieval-Augmented Generation.
+* **Core Banking DNA**: Internal catalog of FinXSystems banking software applications and features.
+* **Vector DB**: Database optimized for storing and querying multi-dimensional vector embeddings (Weaviate).
+* **Ollama**: Local, private framework for running LLMs on-premise without external data leaks.
+* **SSE**: Server-Sent Events for real-time token streaming.
+* **RBAC**: Role-Based Access Control (`ADMIN`, `CREATOR`, `CONSUMER`).
+* **DDL / DML**: Data Definition Language / Data Manipulation Language.
 
 ---
 
 ## 2. Overall Description
 
 ### 2.1 Product Perspective
-FKIP operates as an independent, private-cloud application deployed on-premise. It interfaces with external enterprise data sources (file systems, database servers, application registries) and exposes a secure Web Dashboard and API Services for internal users (Product Managers, Business Analysts, DBAs, Developers, and Support Teams).
+FKIP operates as an independent, private cloud application deployed on-premise. It interfaces with enterprise data sources and exposes a secure Web Application and REST API Services for internal stakeholders (Product Managers, Business Analysts, DBAs, Developers, and System Administrators).
 
+```text
+  +-----------------------------------------------------------------------+
+  |                             Data Sources                              |
+  |   (Documents, Oracle SQL DDL, Core Banking Catalogs, Search Logs)     |
+  +-----------------------------------+-----------------------------------+
+                                      | Ingestion & Indexing
+                                      v
+  +-----------------------------------------------------------------------+
+  |                               FKIP Core                               |
+  |  (FastAPI Backend, Redis Cache, PostgreSQL Database, Weaviate Vector) |
+  +-----------------------------------+-----------------------------------+
+                                      | REST / SSE APIs
+                                      v
+  +-----------------------------------------------------------------------+
+  |                           Client Application                          |
+  |      (React 18 SPA: Copilot, SQL Writer, Oracle Intel, DNA, Admin)    |
+  +-----------------------------------------------------------------------+
 ```
-  +------------------+
-  |  Data Sources    |  (Documents, Oracle DB, Core Banking App Metadata, Log Files)
-  +--------+---------+
-           | Ingestion
-           v
-  +------------------+
-  |    FKIP Core     |  (Ingestion, Knowledge Repositories, Vector & Search Layer)
-  +--------+---------+
-           | Services & APIs
-           v
-  +------------------+
-  |   Applications   |  (Web UI, Chat, API Services, Reports & Dashboards)
-  +------------------+
-```
 
-### 2.2 Product Functions
-The primary functions of the platform include:
-1.  **Multi-Source File Ingestion**: Ingest and process documents, extracting text and metadata using OCR.
-2.  **Oracle Database Schema Intelligence**: Reverse engineer Oracle schemas to analyze dependencies, map visual graphs of tables/views/triggers, and perform impact analysis.
-3.  **Core Banking Application Feature Profiling**: Catalog Core Banking applications and extract, tag, and categorize features.
-4.  **Interactive AI Knowledge Assistant**: Provide a chat interface for semantic search, document summarization, and interactive troubleshooting.
-5.  **Innovation Opportunities Analysis**: Identify overlapping functionalities and gaps across the software landscape, suggesting automated development ideas.
-6.  **Report & Documentation Automation**: Export intelligence data into technical specs, release notes, or process flows.
+### 2.2 User Classes & Roles
+* **CONSUMER (Viewer)**: Read-only access to search knowledge, view dashboard KPIs, explore the DNA catalog, and browse documentation. Blocked from uploads, deletions, and administrative actions.
+* **CREATOR (Operator/Developer/BA)**: Full access to upload documents, generate SQL, run impact simulations, draft technical specifications, and add innovation opportunities.
+* **ADMIN (System Administrator)**: Full platform governance, user role modification, real-time infrastructure health monitoring, and system maintenance.
 
-### 2.3 User Classes and Characteristics
-*   **Product Manager (PM)**: Explores Core Banking applications, analyzes feature redundancies, and prioritizes innovation opportunities in the product backlog.
-*   **Business Analyst (BA)**: Detects market gaps, analyzes process workflows, generates business cases, and coordinates roadmap planning.
-*   **Database Administrator (DBA) & Developer**: Analyzes Oracle database metadata dependencies and performs impact calculations for database migrations or modifications.
-*   **Support & Operations Engineer**: Uses the Knowledge Assistant to search release notes, user guides, and troubleshooting steps.
-*   **Platform Administrator**: Manages role assignments, monitors system logs, schedules ingestion tasks, and oversees local model configurations.
-
-### 2.4 Design and Implementation Constraints
-*   **Deployment**: Must run entirely on-premise or within a Private Cloud environment (no external SaaS LLM API calls permitted).
-*   **GPU Resources**: LLM inference (via Ollama) must fit within the client's allocated hardware (e.g., enterprise NVIDIA GPUs, minimal VRAM profiles).
-*   **Scalability**: The system must scale to handle 400+ Core Banking applications, thousands of Oracle tables/metadata objects, and tens of thousands of PDF/DOCX pages.
-*   **Open Source Foundations**: Built using Python, Weaviate, PostgreSQL, Docker, and Ollama.
-
-### 2.5 Assumptions and Dependencies
-*   **Data Availability**: FinXSystems provides access keys and read-only database connections for Oracle schemas and Core Banking application registries.
-*   **Hardware Provisioning**: Adequate computing infrastructure (GPU/CPU/Storage) is set up for running local vectorization and LLM workloads.
+### 2.3 Operating Environment & Constraints
+* **Deployment**: Containerized multi-service deployment via Docker Compose (`backend`, `frontend`, `postgres`, `redis`, `weaviate`, `ollama`).
+* **Security & Privacy**: 100% on-premise execution; zero external cloud API dependencies.
+* **Data Isolation**: Local storage of vector embeddings, document files, and user session tokens.
 
 ---
 
-## 3. Specific Requirements
+## 3. Specific Functional Requirements
 
-### 3.1 Functional Requirements
+### 3.1 Authentication & User Management (AUTH)
+* **AUTH-1: Secure Authentication**: The system shall authenticate users via `/api/auth/login` and issue cryptographically signed JWT bearer tokens.
+* **AUTH-2: User Registration**: The system shall support new user registration via `/api/auth/register` with default `CONSUMER` role assignment and email uniqueness validation.
+* **AUTH-3: Profile Retrieval**: The system shall return authenticated user details via `/api/auth/me`.
+* **AUTH-4: Role-Based Access Control**: The system shall strictly enforce endpoint authorization across `ADMIN`, `CREATOR`, and `CONSUMER` roles.
 
-#### 3.1.1 Ingestion Layer (IL)
-*   **IL-1: Multi-Format Support**: The system shall ingest PDF, DOCX, TXT, CSV, and image files (PNG/JPG).
-*   **IL-2: Optical Character Recognition (OCR)**: The system shall perform OCR on screenshots and scanned PDF pages to extract textual content.
-*   **IL-3: Metadata Extraction**: The system shall auto-extract file attributes (author, creation date, source system, file type) and construct tags.
-*   **IL-4: Chunking & Splitting**: The system shall segment documents into configurable, semantic chunks (e.g., 500-1000 characters with 10% overlap) optimized for vector representation.
-*   **IL-5: Validation Pipeline**: The system shall execute schema validation on ingested application JSONs/CSVs and log errors.
+### 3.2 Document Ingestion & Vector Indexing (DOCS)
+* **DOCS-1: Multi-Format Ingestion**: The system shall accept `.pdf`, `.txt`, and `.docx` file uploads via `/api/documents/upload` with background processing.
+* **DOCS-2: Chunking & Tokenization**: The system shall segment documents into semantic chunks with token counts and positional indices.
+* **DOCS-3: Dual Persistence**: The system shall store document records in PostgreSQL and index dense vector embeddings in Weaviate.
+* **DOCS-4: Chunk Retrieval & Purge**: The system shall support chunk listing via `/api/documents/{id}/chunks` and cascading deletion of documents and vector embeddings.
 
-#### 3.1.2 Knowledge Repository (KR)
-*   **KR-1: Relational Metadata Storage**: The system shall use PostgreSQL to maintain user accounts, system configuration, Core Banking application lists, and Oracle table schemas.
-*   **KR-2: Unstructured Data Storage**: The system shall store raw files, document chunks, and OCR extracts in a secure object store or local filesystem directory.
-*   **KR-3: Graph Relationships (Optional)**: The system shall support modeling hierarchical associations (such as app-to-database connections) using relational self-references or graph extensions.
+### 3.3 Knowledge Search & RAG Assistant (SEARCH)
+* **SEARCH-1: Hybrid Search**: The system shall execute hybrid semantic and lexical keyword queries via `/api/search` with relevance scoring and limit filtering.
+* **SEARCH-2: Conversational RAG**: The system shall provide interactive RAG chat via `/api/search/chat` with citations grounded in source document chunks.
+* **SEARCH-3: Feedback Logging**: The system shall record user ratings (1–5) and comments via `/api/search/feedback`.
+* **SEARCH-4: Search Auditing**: The system shall log query text, response text, and execution latency in `search_audit_logs`.
 
-#### 3.1.3 Vector & Search Layer (VSL)
-*   **VSL-1: Vector Ingestion**: The system shall convert document chunks and metadata features into high-dimensional vector embeddings using a local transformer model (e.g., `all-MiniLM-L6-v2` or similar local model via Ollama/SentenceTransformers).
-*   **VSL-2: Semantic Storage**: The system shall index vectors inside Weaviate.
-*   **VSL-3: Hybrid Search Execution**: The system shall run hybrid queries combining dense vector search (semantic) and BM25 keywords (lexical) with adjustable weights.
-*   **VSL-4: Citation Traceability**: The search output shall include source document references, page numbers, and snippet boundaries to verify answers.
+### 3.4 Multi-Model AI Copilot (COPILOT)
+* **COPILOT-1: Model Discovery**: The system shall expose all 5 configured AI models (`qwen2.5:latest`, `llama3.1:latest`, `mistral:latest`, `gemma:2b`, `deepseek-r1:latest`) via `/api/copilot/models`.
+* **COPILOT-2: Synchronous & SSE Streaming Chat**: The system shall provide synchronous chat via `/api/copilot/chat` and real-time token streaming via `/api/copilot/chat/stream`.
+* **COPILOT-3: Context Enrichment**: The system shall enrich prompt contexts with semantic recommendations from ingested documents and catalog metadata.
+* **COPILOT-4: Session History**: The system shall maintain persistent multi-message conversation threads via `/api/copilot/sessions`.
 
-#### 3.1.4 Intelligence Engine (IE)
-*   **IE-1: Interactive Chat (RAG)**: The system shall generate contextual answers to user queries using a local LLM (e.g., Llama-3-8B-Instruct or Mistral-7B-Instruct via Ollama) augmented with retrieved knowledge.
-*   **IE-2: Oracle Dependency Extraction**: The system shall analyze DDL and DB metadata to track dependencies between tables, views, stored procedures, and triggers.
-*   **IE-3: Database Impact Analysis**: The system shall calculate the downstream risk score and affected objects when a target table or column is altered.
-*   **IE-4: Core Banking Application Gap & Overlap Analysis**: The system shall run semantic clustering on Core Banking application descriptions to group them by capability, detecting overlapping features and unaddressed market needs.
-*   **IE-5: Automated Idea Generation**: The system shall run LLM prompts to synthesize gap findings into actionable product suggestions (e.g., "Oracle Copilot", "Environment Health Monitor").
-*   **IE-6: Opportunity Scoring**: The system shall score ideas based on Business Value (High/Medium/Low) and Complexity (High/Medium/Low).
+### 3.5 AI SQL Writer & Safe Execution (SQL)
+* **SQL-1: Schema Tree Extraction**: The system shall extract database schema tables, columns, data types, and primary keys via `/api/sql/schema`.
+* **SQL-2: Natural Language Generation**: The system shall generate SQL queries for Oracle and PostgreSQL dialects via `/api/sql/generate`.
+* **SQL-3: SQL Formatting & Explain Plan**: The system shall format SQL keywords and indentation via `/api/sql/format` and generate execution plan breakdowns via `/api/sql/explain`.
+* **SQL-4: Safe Execution Guardrails**: The system shall execute read-only `SELECT` queries via `/api/sql/execute` and strictly reject destructive DDL/DML mutations (`DROP`, `DELETE`, `UPDATE`, `TRUNCATE`, `ALTER`, `CREATE`, `GRANT`) and comment injection bypass attempts.
+* **SQL-5: Query History & Documentation Synthesis**: The system shall log executed queries in `sql_generation_history` and synthesize Markdown technical specifications via `/api/sql/generate-docs`.
 
-#### 3.1.5 Application & User Interface Layer (AUL)
-*   **AUL-1: Interactive Web Dashboard**: The system shall provide a responsive user interface with panels for Knowledge Search, Core Banking Explorer, Oracle Dependency Tree, and the Product Opportunity Register.
-*   **AUL-2: Dynamic Visualizations**: The system shall display Oracle dependency structures using interactive tree or network graphs (e.g., Cytoscape.js, D3.js, or Mermaid).
-*   **AUL-3: Document Export**: The system shall enable users to download generated ideas and technical specs in Markdown and PDF formats.
+### 3.6 Oracle Database Intelligence (ORACLE)
+* **ORACLE-1: DDL Ingestion**: The system shall parse `.sql` DDL scripts via `/api/oracle/upload` to extract tables, views, triggers, and foreign keys.
+* **ORACLE-2: Catalog & Dependencies**: The system shall list schema objects via `/api/oracle/objects` and relationship mappings via `/api/oracle/dependencies`.
+* **ORACLE-3: Change Impact Simulation**: The system shall calculate downstream impact trees via `/api/oracle/impact-analysis`, distinguishing valid references (`✓ Valid reference`) from broken reference risks.
+
+### 3.7 Core Banking DNA Catalog (DNA)
+* **DNA-1: Application Catalog**: The system shall list Core Banking applications and feature specifications via `/api/dna/applications`.
+* **DNA-2: Semantic Clustering**: The system shall compute capability clusters via `/api/dna/clusters` to identify functional overlaps across applications.
+* **DNA-3: Feature Matching**: The system shall match new feature descriptions against the existing catalog via `/api/dna/features/match`.
+
+### 3.8 Innovation Opportunities Pipeline (INNOV)
+* **INNOV-1: Pipeline Management**: The system shall provide CRUD management for innovation opportunities via `/api/innovation/opportunities`.
+* **INNOV-2: Opportunity Scoring**: The system shall score opportunities across Business Value (`HIGH`, `MEDIUM`, `LOW`), Complexity (`HIGH`, `MEDIUM`, `LOW`), and Priority (`P1`, `P2`, `P3`).
+* **INNOV-3: AI Gap Analysis**: The system shall synthesize document gaps and suggest high-value product opportunities via `/api/innovation/analyze`.
+
+### 3.9 Knowledge Graph (GRAPH)
+* **GRAPH-1: Cross-Entity Graph**: The system shall extract unified graph nodes and edges across documents, Oracle objects, DNA apps, and opportunities via `/api/knowledge-graph/data`.
+* **GRAPH-2: Sub-Graph Search**: The system shall filter and retrieve sub-graphs based on entity search queries via `/api/knowledge-graph/search`.
+
+### 3.10 Technical Document Generator (GEN)
+* **GEN-1: Template Generation**: The system shall synthesize specifications across 6 enterprise templates (BRD, SRS, Tech Design, API Docs, Release Notes, User Manual) via `/api/docs/generate`.
+* **GEN-2: Custom Docs & Append**: The system shall save custom Markdown documents via `/api/docs/custom` and append sections via `PUT /api/docs/{id}` while preserving existing content.
+
+### 3.11 Executive Telemetry & Admin Console (DASH / ADMIN)
+* **DASH-1: Executive KPI Metrics**: The system shall aggregate telemetry metrics via `/api/reports/executive` with Redis caching and manual cache invalidation (`?refresh=true`).
+* **ADMIN-1: User Governance**: The system shall provide user listing, search, and role updates via `/api/admin/users`.
+* **ADMIN-2: Infrastructure Health Monitoring**: The system shall monitor real-time health for PostgreSQL, Redis, Weaviate, Ollama, and host CPU/RAM via `/api/admin/monitoring`.
 
 ---
 
 ## 4. Non-Functional Requirements
 
-### 4.1 System Performance & Ingestion Rates
-*   **PER-1: Search Response Latency**: Semantic search and retrieval (prior to LLM generation) must return results within **1.5 seconds** under a concurrent load of 50 users.
-*   **PER-2: Chat Generation Latency**: Chat responses from the local LLM must maintain a generation rate of at least **15 tokens per second**.
-*   **PER-3: Document Ingestion Speed**: The ingestion pipeline must process and index standard PDF files at a rate of at least **30 pages per minute** (excluding OCR).
-*   **PER-4: OCR Processing**: Screen/image OCR extraction must execute in under **5 seconds** per image.
+### 4.1 Performance & Latency
+* **PERF-1**: Redis-cached telemetry and search responses shall return in under **50ms**.
+* **PERF-2**: Cold hybrid search queries across large vector spaces shall return in under **350ms**.
+* **PERF-3**: Read-only SQL query execution against relational tables shall execute in under **100ms**.
 
-### 4.2 AI Quality & Performance Metrics
-*   **AI-1: Answer Relevance**: The RAG assistant must maintain an answer relevance score of **> 90%** (validated via Ragas/evaluation frameworks).
-*   **AI-2: Faithfulness**: Generated responses must have a faithfulness score of **> 90%**, ensuring facts are strictly grounded in retrieved documents.
-*   **AI-3: Knowledge Coverage**: The search engine must index and retrieve relevant blocks from **> 95%** of valid uploaded resources.
-*   **AI-4: Hallucination Rate**: The hallucination rate must remain below **5%** by enforcing strict system prompts ("I do not know if the documents do not specify").
-*   **AI-5: Idea Quality**: Automated product ideas must meet a relevance rating of **> 85%** as judged by domain experts.
+### 4.2 Security & Integrity
+* **SEC-1**: Password credentials must be hashed using bcrypt with salted entropy.
+* **SEC-2**: API endpoints must validate JWT tokens on every authenticated request.
+* **SEC-3**: SQL Writer must enforce strict read-only execution guardrails to prevent accidental or malicious database mutations.
 
-### 4.3 Security & Compliance
-*   **SEC-1: Role-Based Access Control (RBAC)**: The system shall enforce permissions distinguishing between Administrators, Creators (PMs/BAs/DBAs), and Consumers (Viewers).
-*   **SEC-2: On-Premise Data Isolation**: All data, embeddings, and model weights must reside strictly inside the corporate network. No telemetry or query logs shall be sent to external networks.
-*   **SEC-3: Cryptography**: All data at rest must be encrypted using AES-256. User sessions and network communications must run over TLS 1.3.
-*   **SEC-4: Audit Trails**: The system must log security-critical events (login attempts, permission changes, database connections, bulk data export) in PostgreSQL with read-only permission constraints for application services.
-
-### 4.4 Reliability, Availability, and Portability
-*   **REL-1: Availability**: The platform shall maintain **99.5% uptime** during working hours (Monday to Friday, 07:00 to 20:00).
-*   **REL-2: Dockerization**: The entire application stack (Frontend, Backend, Vector DB, Relational DB) must be packageable via Docker Compose to ensure portability across local dev environments and the target private cloud.
+### 4.3 Reliability & Automated Testing
+* **REL-1**: The platform must maintain a comprehensive automated test suite covering API, Security, Integration, Performance, and E2E layers with 100% pass verification.
+* **REL-2**: Container health checks and isolated microservices ensure independent restartability and fault tolerance.

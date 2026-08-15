@@ -1,55 +1,69 @@
 # FKIP Administrator Console Operations Manual
 
-This operations guide is intended for system administrators managing the **FinXSystems Knowledge Intelligence Platform (FKIP)** deployment, auditing search logs, and monitoring infrastructure health pulse metrics.
+This operations guide is intended for system administrators managing the **FinXSystems Knowledge Intelligence Platform (FKIP)** deployment, auditing user permissions, and monitoring infrastructure health pulse metrics.
 
 ---
 
 ## 1. Administrator Authentication
-- **Admin account**:
+
+* **Default Admin Account**:
   * Email: `admin@finxsystems.com`
   * Password: `password123`
-- Logging in as an **ADMIN** role enables the **Admin Console** link in the sidebar menu.
+  * Role: `ADMIN`
+* Logging in with the `ADMIN` role unlocks the **Admin Console** in the sidebar navigation. Non-admin users attempting to access admin endpoints receive `403 Forbidden`.
 
 ---
 
-## 2. Infrastructure Health Monitoring
+## 2. User Management & Role Governance
 
-Navigate to the **Admin Console** (`/admin`). The screen queries live hardware states and connection handshakes:
-1. **CPU & Memory Load**: Dials tracking current container resource usage percentages.
-2. **PostgreSQL Health**: Confirms database connection and displays database size on disk in Megabytes (MB).
-3. **Weaviate Health**: Validates vector indexing search response and counts current indexed objects.
-4. **Ollama Health**: Confirms the local LLM endpoint is active and lists model types loaded inside the container memory.
-
----
-
-## 3. Search Log Audits & Analytics
-
-Administrators have access to transaction-level logs under the dashboard and `/reports` sections:
-- **Search latency histograms**: Monitors average inference processing durations.
-- **Average Relevance & Faithfulness Scores**: Visualizes LLM generation quality metrics to verify responses are grounded and clean.
-- **Audit Registry logs table**: Lists historical search entries, showing:
-  * Prompt query string.
-  * Generated response.
-  * Execution latency in milliseconds.
-  * Hallucination indicators.
-- **Top Queries Analysis**: Lists most frequently searched terms to locate popular knowledge gaps.
+Navigate to **Admin Console** (`/admin`) → **User Management**:
+* **User Search & Listing**: Search registered users by email or name.
+* **Role Modification**: Modify access levels dynamically:
+  * `CONSUMER` (Viewer): Read-only search, DNA catalog browsing, and dashboard telemetry viewing.
+  * `CREATOR` (Developer / BA): Document uploads, SQL Writer generation/execution, Oracle DDL imports, specification drafting, and innovation backlog creation.
+  * `ADMIN` (Administrator): Full platform governance, user role modification, and infrastructure monitoring.
 
 ---
 
-## 4. Troubleshooting & Maintenance
+## 3. Infrastructure Health Monitoring
+
+The **Infrastructure Pulse** dashboard (`GET /api/admin/monitoring`) performs live checks across all containerized services:
+
+1. **PostgreSQL Relational DB**: Validates database connectivity, active transactions, and table row counts.
+2. **Redis In-Memory Cache**: Verifies cache connectivity, ping latency, and memory utilization.
+3. **Weaviate Vector DB**: Confirms vector search availability and object indexing status on port `8081`.
+4. **Ollama AI Engine**: Confirms endpoint responsiveness on port `11434` and lists loaded inference models (`qwen2.5`, `llama3.1`, `mistral`, `gemma:2b`, `deepseek-r1`).
+5. **Host CPU & Memory**: Tracks real-time CPU percentage and host RAM usage.
+
+---
+
+## 4. Search Log Audits & Analytics
+
+Administrators have access to transaction-level audit logs under **Analytics & Reports** (`/reports`):
+* **Query Latency Trends**: Monitors average inference processing durations across models and search queries.
+* **Audit Registry Table**: Displays historical search entries, showing query text, synthesized response, latency in milliseconds, and hallucination flags.
+* **User Feedback Ratings**: Averages 1–5 star ratings submitted by users to identify areas for knowledge base expansion.
+
+---
+
+## 5. Maintenance & Service Operations
 
 ### Restarting Services
-If a database connection fails or Ollama is unresponsive, restart individual services using Docker Compose:
+If an individual container requires a restart, execute the corresponding Docker Compose command:
 ```bash
 # Restart backend API server
 docker compose restart fkip-backend
 
 # Restart Ollama AI engine
 docker compose restart fkip-ollama
+
+# Restart Redis cache
+docker compose restart fkip-redis
 ```
 
-### Clearing Cache & Resetting Data
-To purge all uploaded files, vector indexes, and chat sessions back to a clean state without destroying Postgres user tables:
-1. Log in to the web app using `admin@finxsystems.com`.
-2. Navigate to the **Admin Console**.
-3. Under the **Maintenance** panel, click **Purge Indexed Knowledge & Reset Logs**. (Alternatively, run the database reset script under `./scripts/cleanup_demo.sql` inside PostgreSQL).
+### Database Seeding & Reseeding
+To reseed the platform with fresh demo data and specifications:
+```bash
+# Reseed fresh database and vector store
+python scripts/reseed_fresh_data.py
+```

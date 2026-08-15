@@ -5,220 +5,181 @@
 
 ## 1. Architectural Overview
 
-The FinXSystems Knowledge Intelligence Platform (FKIP) uses a **Layered Service-Oriented Architecture** built on-premise. The system decouples data ingestion, storage, vector indexing, AI intelligence processing, and user presentation layers. This allows components to scale independently and ensures strict local data boundary control.
+The FinXSystems Knowledge Intelligence Platform (FKIP) is built using a **Layered Microservices Architecture** deployed on-premise inside containerized environments. It decouples the React frontend single-page application, FastAPI backend services, Redis caching, relational data persistence (PostgreSQL), dense vector search (Weaviate), and local LLM inference (Ollama).
 
-```
-+---------------------------------------------------------------------------------+
-|                                 APPLICATION LAYER                               |
-|   +------------------+   +------------------+   +-------------+   +---------+   |
-|   |  Web Dashboard   |   |  Chat Interface  |   |  API Portal |   | Reports |   |
-|   +--------+---------+   +--------+---------+   +------+------+   +----+----+   |
-+------------|----------------------|--------------------|---------------|--------+
-             v                      v                    v               v
-+------------+----------------------+--------------------+---------------+--------+
-|                                INTELLIGENCE ENGINE                              |
-|   +------------------+   +------------------+   +-------------+   +---------+   |
-|   |   RAG Engine     |   | AI Knowledge Asst|   | Oracle Intel|   | Core Banking App |   |
-|   +--------+---------+   +--------+---------+   +------+------+   +----+----+   |
-|            |                      |                    |               |        |
-|            +----------------------+--------------------+---------------+        |
-|                                   | (Retrieval & Execution)                     |
-|                                   v                                             |
-|   +-------------------------------------------------------------------------+   |
-|   |                       Innovation Discovery Engine                       |   |
-|   +-------------------------------------------------------------------------+   |
-+-----------------------------------|---------------------------------------------+
-                                    v
-+-----------------------------------+---------------------------------------------+
-|                             VECTOR & SEARCH LAYER                               |
-|                  +-------------------------------------+                        |
-|                  |     Hybrid Search & Ranking Engine   |                        |
-|                  +------------------+------------------+                        |
-|                                     |                                           |
-|                                     v                                           |
-|                  +-------------------------------------+                        |
-|                  |          Weaviate Vector DB         |                        |
-|                  +-------------------------------------+                        |
-+-------------------------------------|-------------------------------------------+
-                                      v
-+-------------------------------------+-------------------------------------------+
-|                              KNOWLEDGE REPOSITORY                               |
-|                  +-------------------------------------+                        |
-|                  |     PostgreSQL Metadata Database    |                        |
-|                  +-------------------------------------+                        |
-|                  |     Object Store (FileSystem / MinIO)|                        |
-|                  +-------------------------------------+                        |
-+-------------------------------------^-------------------------------------------+
-                                      |
-+-------------------------------------|-------------------------------------------+
-|                               INGESTION LAYER                                   |
-|   +------------------+   +------------------+   +-------------+   +---------+   |
-|   |  File Ingestor   |   |   OCR Pipeline   |   | Metadata Ext|   | Chunking|   |
-|   +------------------+   +------------------+   +-------------+   +---------+   |
-+-------------------------------------^-------------------------------------------+
-                                      | (Reads)
-+-------------------------------------|-------------------------------------------+
-|                                DATA SOURCES                                     |
-|   +------------------+   +------------------+   +-------------+   +---------+   |
-|   | Documents / Files|   | Oracle Metadata  |   | Core Banking App Specs|   | Workflows|   |
-|   +------------------+   +------------------+   +-------------+   +---------+   |
-+---------------------------------------------------------------------------------+
+```text
++-----------------------------------------------------------------------------------------+
+|                                      PRESENTATION LAYER                                 |
+|   +---------------------------------------------------------------------------------+   |
+|   |                       React 18 SPA (Vite + Glassmorphism UI)                    |   |
+|   |   - Dashboard         - AI Copilot (SSE)     - SQL Writer      - Oracle Intel   |   |
+|   |   - Knowledge Search  - DNA Catalog          - Innovation      - Knowledge Graph|   |
+|   |   - Doc Generator     - Analytics Reports    - Admin Console   - Theme Context  |   |
+|   +----------------------------------------+----------------------------------------+   |
++--------------------------------------------|--------------------------------------------+
+                                             | HTTP / REST & Server-Sent Events (SSE)
+                                             v
++-----------------------------------------------------------------------------------------+
+|                                    APPLICATION API LAYER                                |
+|   +---------------------------------------------------------------------------------+   |
+|   |                       FastAPI Asynchronous Backend (Port 8000)                  |   |
+|   |   - auth_router       - search_router        - copilot_router  - sql_writer_router  |
+|   |   - oracle_router     - dna_router           - innovation_router - docs_router      |
+|   |   - graph_router      - reports_router       - admin_router    - CORS Middleware    |
+|   +----------------------------------------+----------------------------------------+   |
++--------------------------------------------|--------------------------------------------+
+                                             | Internal Service Bus / Pipelines
+                                             v
++-----------------------------------------------------------------------------------------+
+|                                      SERVICES LAYER                                     |
+|   +-------------------+  +-------------------+  +-------------------+  +------------+   |
+|   |  Ingestion Engine |  |  Grounding & RAG  |  |  Oracle Service   |  | Clustering |   |
+|   |  - Chunking       |  |  - Citations      |  |  - DDL Parser     |  | - Overlaps |   |
+|   |  - Token Counts   |  |  - Prompt Builder |  |  - Impact Graph   |  | - Features |   |
+|   +---------+---------+  +---------+---------+  +---------+---------+  +-----+------+   |
+|             |                      |                      |                  |          |
+|   +---------v---------+  +---------v---------+  +---------v---------+        |          |
+|   |   Cache Service   |  |    LLM Service    |  |   Vector Service  |<-------+          |
+|   |   - In-Memory     |  |   - Multi-Model   |  |   - Weaviate      |                   |
+|   |   - Redis Client  |  |   - Streaming SSE |  |   - Hybrid Search |                   |
+|   +---------+---------+  +---------+---------+  +---------+---------+                   |
++-------------|----------------------|----------------------|-----------------------------+
+              |                      |                      |
+              v                      v                      v
++-----------------------------------------------------------------------------------------+
+|                                   INFRASTRUCTURE LAYER                                  |
+|   +-------------------+  +-------------------+  +-------------------+  +------------+   |
+|   |    PostgreSQL     |  |   Redis Cache     |  |  Weaviate Vector  |  |   Ollama   |   |
+|   |    Port: 5432     |  |   Port: 6379      |  |   Port: 8081      |  | Port:11434 |   |
+|   | Relational tables |  | In-memory caching |  | Vector embeddings |  | Local LLMs |   |
+|   +-------------------+  +-------------------+  +-------------------+  +------------+   |
++-----------------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Architectural Layers
+## 2. Core Architectural Components
 
-### 2.1 Ingestion Layer
-*   **Purpose**: Gathers unstructured and structured data and prepares it for storage and vectorization.
-*   **Components**:
-    *   **File Ingestor**: Connects to network shares and folders to load PDFs, DOCX, and TXT files.
-    *   **OCR Pipeline**: Uses `Tesseract OCR` or `EasyOCR` to convert screenshots, process layouts, and images into raw text.
-    *   **Metadata Extractor**: Leverages regular expressions and heuristics to pull creation dates, authors, version identifiers, and security tags.
-    *   **Chunker**: Splits large documents into overlapping fragments (default: 500-1000 characters, 10% overlap) using recursive character-splitting models.
-    *   **Data Validator**: Enforces schema rules on Core Banking applications and Oracle schema imports before saving them.
+### 2.1 Frontend Single-Page Application (`/frontend`)
+* **Technology**: React 18, Vite, React Router v6, Lucide React icons, Recharts.
+* **Styling**: Curated Vanilla CSS design system with HSL tokens, dark/light theme switching, and glassmorphism styling.
+* **State & Communication**:
+  * `ThemeContext`: Toggles between dark mode (`#090d16`) and light mode themes.
+  * `ToastContext`: Provides global floating toast notifications.
+  * `api.js`: Centralized Axios/fetch client handling JWT Bearer tokens and HTTP errors.
+  * Real-time SSE consumers for streaming AI Copilot responses.
 
-### 2.2 Knowledge Repository (KR)
-*   **Purpose**: Serves as the persistent storage layer for structured application metadata, system state, and raw binary objects.
-*   **Components**:
-    *   **PostgreSQL**: Stores relational tables for users, permissions, Core Banking application catalogs, Oracle DB metadata (schemas, dependencies, impact weights), processing logs, and generated innovation opportunities.
-    *   **Object Store**: Manages raw files, text extracts, and attachments on the local filesystem.
+### 2.2 Backend Microservice (`/backend`)
+* **Technology**: Python 3.11+, FastAPI, SQLAlchemy, Pydantic, Uvicorn.
+* **Routers (`app/api/`)**:
+  * `auth.py`: JWT login, registration, and profile retrieval.
+  * `copilot.py`: Multi-model AI reasoning, SSE streaming (`EventSourceResponse`), session history.
+  * `search.py`: Hybrid semantic search, conversational RAG, feedback ratings, search audit logs.
+  * `sql_writer.py`: Schema extraction, Natural Language to SQL, formatting, explain plan, safe read-only execution, query history, Markdown tech spec synthesis, CSV export.
+  * `oracle.py`: DDL parsing, schema object catalog, foreign key/view/trigger dependencies, change impact simulation with valid reference validation.
+  * `docs.py`: Document uploads (`202 Accepted`), chunking, template generation (BRD, SRS, Tech Design, API Docs, Release Notes, User Manual), custom document saving, section appending.
+  * `dna.py`: Core Banking application catalog, capability clustering, feature similarity matching.
+  * `innovation.py`: Opportunity backlog CRUD, scoring, AI gap analysis.
+  * `knowledge_graph.py`: Cross-entity graph node/edge extraction and filtering.
+  * `reports.py`: Executive KPI telemetry with cache invalidation, latency trends.
+  * `admin.py`: User governance, role elevations, real-time infrastructure pulse.
 
-### 2.3 Vector & Search Layer (VSL)
-*   **Purpose**: Indexes document chunks and application descriptions for fast semantic and keyword search.
-*   **Components**:
-    *   **Weaviate Vector DB**: An on-premise vector store that maps textual chunks to multi-dimensional coordinate spaces using dense vectors.
-    *   **Hybrid Search Engine**: Merges BM25 lexical keyword scores with dense vector cosine similarity scores, producing a ranked list of relevant chunks based on configurable weights:
-        $$\text{Hybrid Score} = \alpha \times \text{Semantic Score} + (1 - \alpha) \times \text{BM25 Score}$$
-        *(Where $\alpha$ defaults to $0.5$)*.
-
-### 2.4 Intelligence Engine (IE)
-*   **Purpose**: Contains the core logic for reasoning, summarizing, mapping relationships, and discovering innovation opportunities.
-*   **Components**:
-    *   **RAG Orchestrator**: Manages context collection, assembly, prompt construction, and LLM query tasks.
-    *   **AI Knowledge Assistant**: Provides conversational interaction.
-    *   **Oracle Dependency Mapper**: Evaluates structural metadata extracted from Oracle to calculate dependency trees and identify downstream impact vectors.
-    *   **Core Banking App Intelligence & Innovation Discovery Engine**: Groups Core Banking applications based on embedding similarities, identifies gaps in functionality, and processes ideas through the Innovation Discovery Canvas.
-
-### 2.5 Application Layer
-*   **Purpose**: Handles user authentication, session state, visualization rendering, and exports.
-*   **Components**:
-    *   **Web Dashboard (React / Vite)**: Built with modern, responsive components for chatting, reviewing dependency trees, and inspecting backlog pipelines.
-    *   **FastAPI Backend**: Serves REST APIs, coordinates background ingestion tasks, and routes LLM calls to Ollama.
+### 2.3 Storage & Infrastructure Components
+* **PostgreSQL (`fkip-postgres:5432`)**: Relational storage for 14 entities (users, documents, chunks, opportunities, audit logs, feedbacks, Oracle metadata, Oracle dependencies, DNA apps, DNA features, copilot conversations, copilot messages, generated documents, SQL generation history).
+* **Redis (`fkip-redis:6379`)**: In-memory caching for executive telemetry and frequent hybrid search queries with automatic fallback to local memory cache.
+* **Weaviate (`fkip-weaviate:8081`)**: Vector database storing dense vector embeddings for semantic document search and DNA feature clustering.
+* **Ollama (`fkip-ollama:11434`)**: Local inference engine running configured models (`qwen2.5`, `llama3.1`, `mistral`, `gemma:2b`, `deepseek-r1`) without external cloud API calls.
 
 ---
 
-## 3. Data Flow Diagrams
+## 3. End-to-End Data Flows
 
-### 3.1 Document Ingestion and Vectorization Flow
-The following sequence illustrates how raw documents are loaded, split, vectorized, and indexed.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant DS as Data Sources (Folder/DB)
-    participant IL as Ingestion Engine (Python)
-    participant PG as PostgreSQL Metadata DB
-    participant OS as Object Storage
-    participant OL as Ollama (Embedder)
-    participant WV as Weaviate Vector DB
-
-    DS->>IL: Raw Document Upload / Import
-    IL->>IL: Validate File Type & Permissions
-    IL->>OS: Write Raw Binary File
-    alt Requires OCR
-        IL->>IL: Run OCR Pipeline (Tesseract)
-    end
-    IL->>IL: Run Semantic Chunking
-    IL->>OL: Request Embeddings for Chunks (all-MiniLM-L6-v2)
-    OL-->>IL: Return Vector Arrays (384 dimensions)
-    IL->>WV: Batch Store Vectors & Semantic Metadata
-    IL->>PG: Record Ingestion Job Logs & File Attributes
-    Note over IL,WV: Ingestion Job Completed & Indexed
+### 3.1 Document Ingestion & Vector Indexing Flow
+```text
+User (Upload File)
+  │
+  ▼
+FastAPI (/api/documents/upload)
+  │
+  ├─► Generates SHA-256 Hash & Saves File
+  ├─► Creates Document Record in PostgreSQL (Status: PROCESSING)
+  │
+  ▼
+Background Worker (app.services.ingestion)
+  │
+  ├─► Extracts Text (PDF, DOCX, TXT)
+  ├─► Segments Text into Semantic Chunks with Token Counts
+  ├─► Writes DocumentChunks to PostgreSQL
+  ├─► Generates Vector Embeddings via Ollama / SentenceTransformers
+  ├─► Indexes Vectors into Weaviate Vector Store
+  │
+  ▼
+Updates Document Record in PostgreSQL (Status: COMPLETED)
 ```
 
-### 3.2 RAG Chat Query Flow
-This sequence maps the data path when a user submits a natural language question.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant App as Web Dashboard UI
-    participant BE as FastAPI Backend
-    participant WV as Weaviate (Hybrid Search)
-    participant OL as Ollama (Local LLM)
-    participant PG as PostgreSQL (Audit Log)
-
-    User->>App: Submits Query ("Analyze dependencies of Table X")
-    App->>BE: POST /api/chat/query
-    BE->>WV: Execute Hybrid Search (BM25 + Dense Semantic)
-    WV-->>BE: Return Top-K Chunks with Similarity Scores & Citations
-    BE->>BE: Filter Chunks & Construct System Prompt
-    BE->>OL: POST /api/generate (System Prompt + User Query + Citations)
-    loop Token Streaming
-        OL-->>BE: Stream Token Output
-        BE-->>App: Push SSE (Server-Sent Events) Tokens
-    end
-    BE->>PG: Log Query, Latency, and Feedback ID
-    App-->>User: Display Final Response with Source Links
+### 3.2 Multi-Model AI Copilot Streaming Flow
+```text
+User (Prompt + Model Selection)
+  │
+  ▼
+FastAPI (/api/copilot/chat/stream)
+  │
+  ├─► Authenticates JWT Bearer Token & Verifies User
+  ├─► Retrieves Semantic Recommendations from Ingested Docs & Schema Catalog
+  ├─► Constructs Enriched System & User Prompt
+  │
+  ▼
+Ollama Inference Engine (Selected Model: Qwen / Llama / Mistral / Gemma / DeepSeek)
+  │
+  ▼ (Streaming Tokens)
+FastAPI SSE Endpoint (yields data: {"token": "..."})
+  │
+  ▼ (Server-Sent Events Stream)
+React Client (Renders Markdown Tokens Incrementally in Real Time)
+  │
+  ▼ (Stream Complete)
+FastAPI Persists Message to copilot_messages in PostgreSQL
 ```
 
-### 3.3 Oracle Metadata Impact Analysis Flow
-This diagram details how DB schemas are processed, mapped, and queried for impact evaluation.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor DBA as Database User
-    participant BE as FastAPI Backend
-    participant IE as Oracle Intelligence Engine
-    participant PG as PostgreSQL (Schema Repository)
-    
-    DBA->>BE: Select Table "INVOICES" for Modification
-    BE->>IE: Trigger Dependency Trace
-    IE->>PG: Read Oracle Metadata Tables (FKs, Triggers, Views)
-    IE->>IE: Build Directed Dependency Graph (DAG)
-    IE->>IE: Run Breadth-First Search (BFS) / Transitive Closure
-    IE->>IE: Calculate Downstream Risk Scores (Direct vs. Indirect dependencies)
-    IE-->>BE: Return Dependency JSON & Risk Profile
-    BE-->>DBA: Display Interactive Network Graph & Critical Warning List
+### 3.3 Safe AI SQL Writer Flow
+```text
+User (Plain English Prompt)
+  │
+  ▼
+FastAPI (/api/sql/generate)
+  │
+  ├─► Injects Schema Context (Tables, Columns, Types, PKs)
+  ├─► Synthesizes Dialect-Specific SQL (Oracle / PostgreSQL)
+  ├─► Analyzes Query Safety (Flags DDL/DML Mutations)
+  │
+  ▼
+User Reviews SQL in UI & Clicks "Run Query"
+  │
+  ▼
+FastAPI (/api/sql/execute)
+  │
+  ├─► Guardrail Validator: Rejects DROP, DELETE, UPDATE, TRUNCATE, ALTER, CREATE, GRANT
+  ├─► Rejects SQL Injection & Comment Bypass Attempts
+  ├─► Executes Safe Read-Only SELECT with Limit Capping (Max 100 Rows)
+  ├─► Logs Telemetry in sql_generation_history
+  │
+  ▼
+React Client Renders Dynamic Table & Export CSV Option
 ```
 
----
-
-## 4. Key Technology Stack
-
-| Layer | Technology | Version | Purpose / Detail |
-| :--- | :--- | :--- | :--- |
-| **Frontend** | HTML5, JavaScript (React / Vite) | Latest | Modern SPA, vanilla CSS variables, interactive chart canvas. |
-| **Backend API** | Python / FastAPI | 3.11 / Latest | High-performance asynchronous API router and background scheduler. |
-| **Vector Database** | Weaviate | 1.24+ | Local containerized deployment, HNSW indexing, BM25 config. |
-| **Relational Database** | PostgreSQL | 15+ | Relational schema tracker, users, logs, backlog storage. |
-| **LLM Inference Engine** | Ollama | Latest | On-premise runtime for Llama-3-8B / Mistral-7B models. |
-| **Embeddings Model** | SentenceTransformers | `all-MiniLM-L6-v2` | 384-dimension vector embeddings running locally. |
-| **Containerization** | Docker / Docker Compose | Latest | Standardized deployment definitions for local and target instances. |
-
----
-
-## 5. Security Architecture
-
-1.  **Network Isolation**: All containers run in a bridged Docker network. Only the Frontend (port `80`) and Backend API (port `8000`) expose ports to the corporate intranet. Ollama, PostgreSQL, and Weaviate remain inaccessible from external machines.
-2.  **Authentication**: JWT-based authentication tokens. Access tokens expire in 1 hour and must be renewed using secure HTTP-only cookies.
-3.  **Role-Based Access Control (RBAC)**:
-    *   `Admin`: Full configuration, database resets, model re-allocations, ingestion schedules.
-    *   `Creator`: Read-write access to Core Banking applications, Oracle mappings, and backlog items. Can upload documents.
-    *   `Consumer`: Read-only access to search engines, chat, graphs, and the Product Register.
-4.  **Audit Logs**: Trigger mechanisms in PostgreSQL record query patterns, metadata changes, and downloads.
-
----
-
-## 6. Private Cloud / Docker Deployment Layout
-
-The system is deployed using `docker-compose`. Below is the planned services layout:
-
-*   **`fkip-frontend`**: Serves pre-built static files via Nginx. Listens on port `80` (or `443` with local certificates).
-*   **`fkip-backend`**: FastAPI application server. Listens on port `8000`. Runs background workers for document ingestion and text extraction.
-*   **`fkip-postgres`**: PostgreSQL database container. Exposes port `5432` only within the internal bridge network. Persists data to a Docker volume.
-*   **`fkip-weaviate`**: Vector Database container. Exposes port `8080` internally. Relies on local persistence volumes for schema indices.
-*   **`fkip-ollama`**: Runs local model inference. Configured to mount a host GPU using the `nvidia-container-toolkit` configuration to accelerate vector generation and chat token output.
+### 3.4 Oracle Change Impact Simulation Flow
+```text
+User (Selects Schema Object e.g. DEPARTMENTS)
+  │
+  ▼
+FastAPI (/api/oracle/impact-analysis)
+  │
+  ├─► Fetches OracleMetadata & OracleDependencies from PostgreSQL
+  ├─► Performs Graph BFS Traversal to Trace Downstream Dependents
+  ├─► Evaluates Target Reference Integrity:
+  │     • Valid Schema Link  ──► Status: VALID_REFERENCE ("✓ Valid reference")
+  │     • Missing Target     ──► Status: BROKEN_REFERENCE ("Broken reference risk")
+  │
+  ▼
+React Client Renders Cascading Impact Tree & Status Badges
+```
