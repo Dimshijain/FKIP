@@ -34,8 +34,8 @@ def test_tc_dash_003_system_health_telemetry(client, admin_headers):
 
 def test_tc_dash_004_knowledge_growth_accuracy(client, admin_headers):
     """TC-DASH-004: Validate document and chunk counts in executive report."""
-    exec_res = client.get("/reports/executive", headers=admin_headers)
-    docs_res = client.get("/documents", headers=admin_headers)
+    exec_res = client.get("/reports/executive?refresh=true", headers=admin_headers)
+    docs_res = client.get("/documents?limit=500", headers=admin_headers)
     assert exec_res.status_code == 200
     assert docs_res.status_code == 200
     
